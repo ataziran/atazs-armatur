@@ -1,0 +1,7 @@
+{
+ "stdin": "{\"workspace\": {\"current_dir\": \"/home/u/nonspecific\"}, \"context_window\": {\"used_percentage\": 38}}",
+ "cols": 80,
+ "now": 1800000000.0,
+ "branch": "x\u001b[31mred",
+ "getcwd": "/tmp/fallbackdir"
+}

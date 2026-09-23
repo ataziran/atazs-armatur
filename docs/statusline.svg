@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="740" height="128" viewBox="0 0 740 128" role="img" aria-labelledby="t">
+  <title id="t">atazs-armatur status line: context 24 percent, session limit 91 percent resets in 40 minutes, weekly limit 15 percent resets in 4 days 9 hours</title>
+  <!-- Real output of atazs-armatur at COLUMNS=80. 256-colour values are exact xterm-256;
+       the 16-colour cyan/magenta follow the terminal theme, shown here as cyan #56b6c2, magenta #c678dd. -->
+  <rect width="740" height="128" rx="10" fill="#1b1d23"/>
+  <g font-family="&quot;Cascadia Mono&quot;, &quot;JetBrains Mono&quot;, Menlo, Consolas, &quot;DejaVu Sans Mono&quot;, monospace" font-size="15" fill="#d4d4d4" xml:space="preserve">
+    <text x="28" y="45" textLength="117" lengthAdjust="spacingAndGlyphs" fill="#56b6c2" font-weight="700">atazs-armatur</text>
+    <text x="154" y="45" textLength="9" lengthAdjust="spacingAndGlyphs" fill="#585858">›</text>
+    <text x="172" y="45" textLength="36" lengthAdjust="spacingAndGlyphs" fill="#c678dd">main</text>
+    <text x="469" y="45" textLength="27" lengthAdjust="spacingAndGlyphs" fill="#585858">ctx</text>
+    <text x="514" y="45" textLength="36" lengthAdjust="spacingAndGlyphs" fill="#5faf5f">━━━╸</text>
+    <text x="550" y="45" textLength="108" lengthAdjust="spacingAndGlyphs" fill="#303030">━━━━━━━━━━━━</text>
+    <text x="685" y="45" textLength="27" lengthAdjust="spacingAndGlyphs" fill="#5faf5f">24%</text>
+    <text x="415" y="69" textLength="27" lengthAdjust="spacingAndGlyphs" fill="#585858">40m</text>
+    <text x="469" y="69" textLength="27" lengthAdjust="spacingAndGlyphs" fill="#585858">ses</text>
+    <text x="514" y="69" textLength="135" lengthAdjust="spacingAndGlyphs" fill="#d75f5f">━━━━━━━━━━━━━━╸</text>
+    <text x="649" y="69" textLength="9" lengthAdjust="spacingAndGlyphs" fill="#303030">━</text>
+    <text x="685" y="69" textLength="27" lengthAdjust="spacingAndGlyphs" fill="#d75f5f">91%</text>
+    <text x="397" y="93" textLength="45" lengthAdjust="spacingAndGlyphs" fill="#585858">4d 9h</text>
+    <text x="460" y="93" textLength="36" lengthAdjust="spacingAndGlyphs" fill="#585858">week</text>
+    <text x="514" y="93" textLength="18" lengthAdjust="spacingAndGlyphs" fill="#5faf5f">━━</text>
+    <text x="532" y="93" textLength="126" lengthAdjust="spacingAndGlyphs" fill="#303030">╺━━━━━━━━━━━━━</text>
+    <text x="685" y="93" textLength="27" lengthAdjust="spacingAndGlyphs" fill="#5faf5f">15%</text>
+  </g>
+</svg>

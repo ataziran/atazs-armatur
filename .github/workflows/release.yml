@@ -1,0 +1,128 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      # Full history and tags so Go's VCS stamping records vcs.revision,
+      # vcs.time and the v0.x.y module version from the pushed tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Refuse to overwrite an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "::error::Release $GITHUB_REF_NAME already exists; refusing to overwrite it."
+            exit 1
+          fi
+
+      - name: Build binaries
+        run: |
+          set -eu
+          # Go marks a build dirty (vcs.modified=true, +dirty version) when
+          # git status shows untracked files, so dist/ must be invisible to it.
+          echo 'dist/' >> .git/info/exclude
+          mkdir -p dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            os="${target%/*}"
+            arch="${target#*/}"
+            name="atazs-armatur-${os}-${arch}"
+            if [ "$os" = windows ]; then
+              name="${name}.exe"
+            fi
+            echo "building dist/$name"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags='-s -w' -o "dist/$name" .
+          done
+
+      - name: Show embedded build info
+        run: go version -m dist/atazs-armatur-linux-amd64
+
+      - name: Check every binary is stamped with the tag and a clean tree
+        run: |
+          set -eu
+          for bin in dist/atazs-armatur-*; do
+            info="$(go version -m "$bin")"
+            version="$(printf '%s\n' "$info" | awk '$1 == "mod" && $2 == "github.com/ataziran/atazs-armatur" { print $3 }')"
+            if [ "$version" != "$GITHUB_REF_NAME" ]; then
+              echo "::error::$bin has module version '$version', want '$GITHUB_REF_NAME'"
+              exit 1
+            fi
+            if ! printf '%s\n' "$info" | grep -q 'vcs.modified=false'; then
+              echo "::error::$bin was not built from a clean tree"
+              exit 1
+            fi
+            echo "$bin: $version, clean"
+          done
+
+      - name: Write SHA256SUMS
+        working-directory: dist
+        run: |
+          # --text pins the "<hex>  <name>" (two-space) format.
+          sha256sum --text \
+            atazs-armatur-linux-amd64 \
+            atazs-armatur-linux-arm64 \
+            atazs-armatur-darwin-amd64 \
+            atazs-armatur-darwin-arm64 \
+            atazs-armatur-windows-amd64.exe \
+            atazs-armatur-windows-arm64.exe \
+            > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --verify-tag \
+            --title "atazs-armatur $GITHUB_REF_NAME" \
+            --generate-notes

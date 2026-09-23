@@ -1,0 +1,5 @@
+# Line endings are part of the contract: golden .out files are compared byte
+# for byte, and gofmt expects LF. Check everything out with LF on every OS,
+# whatever core.autocrlf says, and never convert the goldens at all.
+*                        text=auto eol=lf
+testdata/golden/*.out    -text

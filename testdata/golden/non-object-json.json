@@ -1,0 +1,7 @@
+{
+ "stdin": "[1, 2]",
+ "cols": 80,
+ "now": 1800000000.0,
+ "branch": "main",
+ "getcwd": "/tmp/fallbackdir"
+}

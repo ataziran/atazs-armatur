@@ -1,0 +1,7 @@
+{
+ "stdin": "{\"workspace\": {\"current_dir\": \"/home/u/项目🚀\"}, \"context_window\": {\"used_percentage\": 38}, \"rate_limits\": {\"five_hour\": {\"used_percentage\": 75, \"resets_at\": 1800003600.0}}}",
+ "cols": 80,
+ "now": 1800000000.0,
+ "branch": "主",
+ "getcwd": "/tmp/fallbackdir"
+}

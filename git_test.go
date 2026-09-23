@@ -1,0 +1,75 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func write(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGitBranch(t *testing.T) {
+	root := t.TempDir()
+
+	// A normal repository on a branch, with a subdirectory.
+	repo := filepath.Join(root, "repo")
+	write(t, filepath.Join(repo, ".git", "HEAD"), "ref: refs/heads/main\n")
+	if err := os.MkdirAll(filepath.Join(repo, "sub", "deeper"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// A linked worktree: .git is a file pointing at the real git dir.
+	wtGitDir := filepath.Join(repo, ".git", "worktrees", "wt")
+	write(t, filepath.Join(wtGitDir, "HEAD"), "ref: refs/heads/feature\n")
+	wt := filepath.Join(root, "wt")
+	write(t, filepath.Join(wt, ".git"), "gitdir: "+wtGitDir+"\n")
+
+	// A detached HEAD holds an object id instead of a ref.
+	detached := filepath.Join(root, "detached")
+	write(t, filepath.Join(detached, ".git", "HEAD"),
+		"9ac8b38e410c20078b1d160ffc408333d7d0c5d5\n")
+
+	// HEAD with a ref that is not a branch, e.g. mid-rebase.
+	otherRef := filepath.Join(root, "otherref")
+	write(t, filepath.Join(otherRef, ".git", "HEAD"), "ref: refs/tags/v1\n")
+
+	// HEAD with content that is neither a ref nor an object id.
+	garbage := filepath.Join(root, "garbage")
+	write(t, filepath.Join(garbage, ".git", "HEAD"), "not an object id\n")
+
+	// An object id too short to shorten.
+	stubby := filepath.Join(root, "stubby")
+	write(t, filepath.Join(stubby, ".git", "HEAD"), "9ac8b3\n")
+
+	// Not a repository at all.
+	plain := filepath.Join(root, "plain")
+	if err := os.MkdirAll(plain, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	for name, tc := range map[string]struct{ dir, want string }{
+		"repository root": {repo, "main"},
+		"subdirectory":    {filepath.Join(repo, "sub", "deeper"), "main"},
+		"linked worktree": {wt, "feature"},
+		"detached head":   {detached, "@9ac8b38"},
+		"non-branch ref":  {otherRef, ""},
+		"garbage head":    {garbage, ""},
+		"short object":    {stubby, ""},
+		"no repository":   {plain, ""},
+		"missing path":    {filepath.Join(root, "nope"), ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := gitBranch(tc.dir); got != tc.want {
+				t.Errorf("gitBranch(%q) = %q, want %q", tc.dir, got, tc.want)
+			}
+		})
+	}
+}
