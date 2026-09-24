@@ -1,8 +1,7 @@
 package main
 
-// Pure rendering: session JSON in, status lines out. Everything the output
-// depends on besides stdin -- terminal width, clock, git branch, working
-// directory -- is passed in, so golden tests can pin it.
+// Pure rendering: decoded session and gathered facts in, status lines out.
+// Nothing here touches the system, so golden tests pin every input as a value.
 
 import (
 	"encoding/json"
@@ -29,26 +28,45 @@ const (
 	// default on Windows 10 -- carries all of it. Block Elements
 	// (U+2580-U+259F) are NOT safe: Consolas lacks the eighth blocks, conhost
 	// has no fallback -> tofu. Same for symbols like U+2387; the branch marker
-	// is a plain '›'.
-	bar, half, tip = "━", "╸", "╺" // U+2501, U+2578, U+257A
+	// is a plain '›'. The idle mark ◷ (U+25F7) lies outside this range and
+	// has a fallback, see clockGlyph.
+	bar, half, tip   = "━", "╸", "╺" // U+2501, U+2578, U+257A
+	thinBar, thinTip = "─", "╶"      // U+2500, U+2576
 
 	barWidth = 16
+
+	idleAfter = 300 // seconds without a new reading before the clock shows
 )
 
 var ansi = regexp.MustCompile(`\x1b\[[0-9;:?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)`)
 
+// env is everything the output depends on besides the payload. main gathers
+// it at the edge; the golden tests pin it as plain values.
 type env struct {
-	cols     int
-	now      float64
-	color    bool
-	getcwd   func() string
-	branchOf func(cwd string) string
+	cols       int
+	now        float64
+	color      bool
+	dir        string  // folder shown: from the payload, else the process's
+	branch     string  // checked out in dir
+	modTime    float64 // transcript's last change, Unix seconds
+	hasModTime bool
+	clock      string // idle mark: ◷, or ○ where the console font lacks it
+}
+
+// clockGlyph picks the idle mark. conhost's fonts (Consolas, Lucida Console)
+// lack U+25F7 and draw a box; Windows Terminal sets WT_SESSION and falls back
+// to a font that has it. Other Windows terminals get ○ too: the safe side.
+func clockGlyph(goos, wtSession string) string {
+	if goos == "windows" && wtSession == "" {
+		return "○"
+	}
+	return "◷"
 }
 
 // render returns the complete output for one invocation.
-func render(stdin []byte, e env) string {
+func render(s session, ok bool, e env) string {
 	out := reset + "\n"
-	if s, ok := decode(stdin); ok {
+	if ok {
 		out = renderLines(s, e)
 	}
 	// NO_COLOR is honoured at the exit rather than in every writer: the same
@@ -66,44 +84,46 @@ func renderLines(s session, e env) string {
 	// empirically -- do not shave this down without re-checking in a live session.
 	cols := max(20, e.cols-4)
 
-	// Only a non-empty string is a path; anything else counts as absent and
-	// falls through to the next source.
-	cwd, _ := s.Workspace.CurrentDir.(string)
-	if cwd == "" {
-		cwd, _ = s.CWD.(string)
-	}
-	if cwd == "" {
-		cwd = e.getcwd()
-	}
-	name := sanitize(basename(cwd))
-	branch := sanitize(e.branchOf(cwd))
+	name := sanitize(basename(e.dir))
+	branch := sanitize(e.branch)
 
-	var rows []string
+	// A transcript time in the future gives a negative age and is not idle.
+	idle := e.hasModTime && e.now-e.modTime > idleAfter
+	mark := ""
+	if idle {
+		mark = e.clock
+	}
 
 	// used_percentage is pre-calculated by Claude Code from context_window
-	// (input + cache_creation + cache_read tokens) / context_window_size.
-	// Fall back to a manual calculation only if it's null/absent.
-	var used float64
-	ctx := s.ContextWindow
-	switch {
-	case ctx.UsedPercentage != nil:
-		used = *ctx.UsedPercentage
-	case ctx.TotalInput != nil && ctx.WindowSize != nil && *ctx.WindowSize != 0:
-		used = *ctx.TotalInput / *ctx.WindowSize * 100
-	}
-	rows = append(rows, meterRow("", "ctx", used))
+	// (input + cache_creation + cache_read tokens) / the window's size.
+	// The context belongs to this session alone, so its track never thins.
+	readings := []reading{{label: "ctx", pct: s.ContextWindow.UsedPercentage, mark: mark}}
 
 	// rate_limits is absent entirely for API-key use, and either window can be
-	// missing on its own. A missing window drops its whole row -- better than
-	// claiming 0%.
+	// missing on its own. A missing, empty or expired window waits rather than
+	// claiming a value.
 	for _, w := range [...]struct {
 		win   *window
 		label string
 	}{{s.RateLimits.FiveHour, "ses"}, {s.RateLimits.SevenDay, "week"}} {
-		if w.win == nil || w.win.UsedPercentage == nil {
-			continue
+		// Shared with other sessions and claude.ai: while idle, more may have
+		// been used elsewhere.
+		r := reading{label: w.label, thin: idle, mark: mark}
+		if w.win != nil {
+			delta, ok := resetsIn(w.win.ResetsAt, e.now)
+			expired := ok && delta <= 0
+			if ok && delta > 0 {
+				r.timer = fmtReset(delta)
+			}
+			if !expired {
+				r.pct = w.win.UsedPercentage
+			}
 		}
-		rows = append(rows, meterRow(fmtReset(w.win.ResetsAt, e.now), w.label, *w.win.UsedPercentage))
+		readings = append(readings, r)
+	}
+	rows := make([]string, len(readings))
+	for i, r := range readings {
+		rows[i] = meterRow(r)
 	}
 
 	blockWidth := 0
@@ -201,8 +221,8 @@ func level(pct float64) string {
 }
 
 // meter draws a half-cell bar after rich/progress_bar.py. Display width is
-// always width.
-func meter(pct float64, width int) string {
+// always width. A thin track leaves the fill as it is.
+func meter(pct float64, width int, thin bool) string {
 	pct = max(0, min(100, pct))
 	col := level(pct)
 	// Floor, not round: a bar that reads full at 96% would lie in the
@@ -215,48 +235,53 @@ func meter(pct float64, width int) string {
 		b.WriteString(half)
 	}
 	rem := width - full - hasHalf
+	trackBar, trackTip := bar, tip
+	if thin {
+		trackBar, trackTip = thinBar, thinTip
+	}
 	b.WriteString(track)
 	if hasHalf == 0 && full > 0 && rem > 0 {
 		// Flush transition: a tip reads cleaner than a blunt edge.
-		b.WriteString(tip)
+		b.WriteString(trackTip)
 		rem--
 	}
-	b.WriteString(strings.Repeat(bar, rem) + reset)
+	b.WriteString(strings.Repeat(trackBar, rem) + reset)
 	return b.String()
 }
 
-// fmtReset turns a Unix epoch into at most 5 chars of countdown; "" when
-// stale or absent.
-func fmtReset(resetsAt any, now float64) string {
+// resetsIn returns the whole seconds until resetsAt; ok is false when resetsAt
+// is absent or unusable: not a number, NaN or ±Inf.
+func resetsIn(resetsAt any, now float64) (delta int64, ok bool) {
 	var at float64
 	switch v := resetsAt.(type) {
 	case json.Number:
 		f, err := v.Float64()
 		if err != nil {
-			return ""
+			return 0, false
 		}
 		at = f
 	case string:
 		// A numeric string counts too, surrounding space included.
 		f, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
 		if err != nil {
-			return ""
+			return 0, false
 		}
 		at = f
 	default:
-		return ""
+		return 0, false
 	}
 	// inf and NaN never count down.
 	if math.IsNaN(at) || math.IsInf(at, 0) {
-		return ""
+		return 0, false
 	}
 	// Cap before the conversion: float->int past the type's range is
 	// implementation-defined, and that far out reads the same as "never".
 	// int64 rather than int, so the cap holds on a 32-bit build too.
-	delta := int64(max(-1, min(at-now, 1e15)))
-	if delta <= 0 {
-		return ""
-	}
+	return int64(max(-1, min(at-now, 1e15))), true
+}
+
+// fmtReset renders a countdown of at most 5 chars; delta must be positive.
+func fmtReset(delta int64) string {
 	if delta < 60 {
 		return "<1m"
 	}
@@ -270,11 +295,33 @@ func fmtReset(resetsAt any, now float64) string {
 	return fmt.Sprintf("%dd %dh", hours/24, hours%24)
 }
 
-func meterRow(timer, label string, pct float64) string {
-	// Clamp before int(): converting a float beyond int64 is undefined, and
-	// the number stays at most 4 digits.
-	p := int(max(-999, min(9999, pct)))
-	col := level(float64(max(0, min(100, p))))
-	return fmt.Sprintf("%s%5s%s  %s%4s%s  %s  %s%3d%%%s",
-		frame, timer, reset, frame, label, reset, meter(pct, barWidth), col, p, reset)
+// reading is one meter row as it will be drawn.
+type reading struct {
+	timer, label string
+	pct          *float64 // nil: no value, the row waits
+	thin         bool     // thin track: a shared limit with no new reading
+	mark         string   // "" or the clock glyph
+}
+
+func meterRow(r reading) string {
+	bar, num := track+strings.Repeat(thinBar, barWidth)+reset, frame+" ..."+reset
+	if r.pct != nil {
+		// Clamp before int(): converting a float beyond int64 is undefined,
+		// and the number stays at most 4 digits.
+		p := int(max(-999, min(9999, *r.pct)))
+		col := level(float64(max(0, min(100, p))))
+		bar, num = meter(*r.pct, barWidth, r.thin), fmt.Sprintf("%s%3d%%%s", col, p, reset)
+	}
+	// The mark takes the space right before the label, so the width holds and
+	// the three marks line up.
+	sep, lbl := "  ", fmt.Sprintf("%4s", r.label)
+	if r.mark != "" {
+		if lbl[0] == ' ' {
+			lbl = r.mark + lbl[1:] // " ctx" -> "◷ctx"
+		} else {
+			sep, lbl = " ", r.mark+lbl // "3d 4h  week" -> "3d 4h ◷week"
+		}
+	}
+	return fmt.Sprintf("%s%5s%s%s%s%s%s  %s  %s",
+		frame, r.timer, reset, sep, frame, lbl, reset, bar, num)
 }

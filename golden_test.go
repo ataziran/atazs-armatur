@@ -1,12 +1,16 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+var update = flag.Bool("update", false, "rewrite the .out files")
 
 // Each testdata/golden/<case>.json pins stdin, width, clock, branch and
 // working directory; <case>.out is the expected output, byte for byte.
@@ -23,36 +27,56 @@ func TestGolden(t *testing.T) {
 				t.Fatal(err)
 			}
 			var spec struct {
-				Stdin   string  `json:"stdin"`
-				Cols    int     `json:"cols"`
-				Now     float64 `json:"now"`
-				Branch  *string `json:"branch"`
-				Getcwd  string  `json:"getcwd"`
-				NoColor bool    `json:"no_color"`
+				Stdin   string   `json:"stdin"`
+				Cols    int      `json:"cols"`
+				Now     float64  `json:"now"`
+				Branch  string   `json:"branch"`
+				Getcwd  string   `json:"getcwd"`
+				NoColor bool     `json:"no_color"`
+				Mtime   *float64 `json:"mtime"`
+				Clock   string   `json:"clock"`
 			}
 			if err := json.Unmarshal(raw, &spec); err != nil {
 				t.Fatal(err)
 			}
-			want, err := os.ReadFile(strings.TrimSuffix(path, ".json") + ".out")
+			s, ok := decode([]byte(spec.Stdin))
+			e := env{cols: spec.Cols, now: spec.Now, color: !spec.NoColor,
+				branch: spec.Branch, clock: cmp.Or(spec.Clock, "◷")}
+			if e.dir = sessionDir(s); e.dir == "" {
+				e.dir = spec.Getcwd
+			}
+			if spec.Mtime != nil {
+				e.modTime, e.hasModTime = *spec.Mtime, true
+			}
+			got := render(s, ok, e)
+			out := strings.TrimSuffix(path, ".json") + ".out"
+			if *update {
+				if err := os.WriteFile(out, []byte(got), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			want, err := os.ReadFile(out)
 			if err != nil {
 				t.Fatal(err)
 			}
-			got := render([]byte(spec.Stdin), env{
-				cols:   spec.Cols,
-				now:    spec.Now,
-				color:  !spec.NoColor,
-				getcwd: func() string { return spec.Getcwd },
-				branchOf: func(string) string {
-					if spec.Branch == nil {
-						return ""
-					}
-					return *spec.Branch
-				},
-			})
 			if got != string(want) {
 				t.Errorf("output mismatch\n got: %q\nwant: %q", got, want)
 			}
 		})
+	}
+}
+
+func TestClockGlyph(t *testing.T) {
+	for _, tc := range []struct{ goos, wtSession, want string }{
+		{"linux", "", "◷"},
+		{"darwin", "x", "◷"},
+		{"windows", "", "○"},
+		{"windows", "1", "◷"},
+	} {
+		if got := clockGlyph(tc.goos, tc.wtSession); got != tc.want {
+			t.Errorf("clockGlyph(%q, %q) = %q, want %q", tc.goos, tc.wtSession, got, tc.want)
+		}
 	}
 }
 

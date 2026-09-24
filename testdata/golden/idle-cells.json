@@ -1,0 +1,8 @@
+{
+ "stdin": "{\"workspace\": {\"current_dir\": \"/home/u/nonspecific\"}, \"transcript_path\": \"/t/s.jsonl\", \"context_window\": {\"used_percentage\": 3.125}, \"rate_limits\": {\"five_hour\": {\"used_percentage\": 3.125, \"resets_at\": 1800003600.0}, \"seven_day\": {\"used_percentage\": 40.625, \"resets_at\": 1800003600.0}}}",
+ "cols": 80,
+ "now": 1800000000.0,
+ "branch": "main",
+ "getcwd": "/tmp/fallbackdir",
+ "mtime": 1799999699.0
+}

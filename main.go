@@ -5,13 +5,15 @@
 //	                  2h41        ses  ━━━━━━╺━   75%
 //	                  3d 4h      week  ━━━━━━━╸   96%
 //
-// Pure stdin -> stdout. No network, no files, no API.
+// Reads stdin, .git/HEAD and the transcript's modification time; writes only
+// stdout. No network, no API.
 package main
 
 import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"time"
 )
@@ -53,17 +55,36 @@ func main() {
 	// A read error leaves whatever arrived before it; a payload that is short
 	// or empty renders with the fallbacks, which is what should happen anyway.
 	stdin, _ := io.ReadAll(os.Stdin)
-	out := render(stdin, env{
+	s, ok := decode(stdin)
+	e := env{
 		cols:  terminalCols(),
 		now:   float64(time.Now().UnixNano()) / 1e9,
 		color: os.Getenv("NO_COLOR") == "",
-		getcwd: func() string {
+		clock: clockGlyph(runtime.GOOS, os.Getenv("WT_SESSION")),
+	}
+	// A malformed payload renders an empty line: nothing to look up for it.
+	if ok {
+		if e.dir = sessionDir(s); e.dir == "" {
 			// An unreachable working directory yields "", and basename("")
 			// gives an empty folder name rather than a wrong one.
-			wd, _ := os.Getwd()
-			return wd
-		},
-		branchOf: gitBranch,
-	})
-	_, _ = os.Stdout.WriteString(out)
+			e.dir, _ = os.Getwd()
+		}
+		e.branch = gitBranch(e.dir)
+		e.modTime, e.hasModTime = transcriptModTime(s.TranscriptPath)
+	}
+	_, _ = os.Stdout.WriteString(render(s, ok, e))
+}
+
+// transcriptModTime returns when the session transcript last changed, in Unix
+// seconds; false when there is no path or it cannot be read. One stat, the
+// content is never read.
+func transcriptModTime(path string) (float64, bool) {
+	if path == "" {
+		return 0, false
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, false
+	}
+	return float64(info.ModTime().UnixNano()) / 1e9, true
 }

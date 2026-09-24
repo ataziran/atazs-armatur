@@ -9,19 +9,19 @@ import (
 //
 // The field types carry the contract for malformed input, and encoding/json
 // enforces it: a field of the wrong shape fails the decode, which blanks the
-// status line, while a missing or null field leaves the zero value and falls
-// back. Three fields must survive a wrong type instead: current_dir and cwd
+// status line. A missing or null field leaves the zero value: a meter without
+// its value shows as waiting, and a missing working directory falls through to
+// the next source. Three fields must survive a wrong type instead: current_dir and cwd
 // fall through to the next source, and resets_at accepts numbers as well as
 // numeric strings. Those are `any` and are checked where they are used.
 type session struct {
 	Workspace struct {
 		CurrentDir any `json:"current_dir"`
 	} `json:"workspace"`
-	CWD           any `json:"cwd"`
-	ContextWindow struct {
+	CWD            any    `json:"cwd"`
+	TranscriptPath string `json:"transcript_path"`
+	ContextWindow  struct {
 		UsedPercentage *float64 `json:"used_percentage"`
-		TotalInput     *float64 `json:"total_input_tokens"`
-		WindowSize     *float64 `json:"context_window_size"`
 	} `json:"context_window"`
 	RateLimits struct {
 		FiveHour *window `json:"five_hour"`
@@ -32,6 +32,16 @@ type session struct {
 type window struct {
 	UsedPercentage *float64 `json:"used_percentage"`
 	ResetsAt       any      `json:"resets_at"`
+}
+
+// sessionDir is the working directory the payload names: current_dir, then
+// cwd. Only a non-empty string counts; "" means the payload names none.
+func sessionDir(s session) string {
+	if dir, _ := s.Workspace.CurrentDir.(string); dir != "" {
+		return dir
+	}
+	dir, _ := s.CWD.(string)
+	return dir
 }
 
 // decode reads the payload. ok is false only for a JSON object whose shape

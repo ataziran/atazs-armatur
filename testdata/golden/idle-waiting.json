@@ -1,0 +1,8 @@
+{
+ "stdin": "{\"transcript_path\": \"/t/s.jsonl\"}",
+ "cols": 80,
+ "now": 1800000000.0,
+ "branch": "main",
+ "getcwd": "/tmp/fallbackdir",
+ "mtime": 1799999699.0
+}
