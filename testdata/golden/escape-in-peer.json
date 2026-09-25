@@ -1,0 +1,7 @@
+{
+ "stdin": "{\"session_id\": \"d9be6c2e-4d31\", \"workspace\": {\"current_dir\": \"/home/u/nonspecific\"}, \"context_window\": {\"used_percentage\": 38}, \"rate_limits\": {\"five_hour\": {\"used_percentage\": 75, \"resets_at\": 1800009690.0}, \"seven_day\": {\"used_percentage\": 96, \"resets_at\": 1800273605.0}}}",
+ "cols": 80,
+ "now": 1800000000.0,
+ "branch": "main",
+ "peer": "\u001b[2J\u001b]0;pwned\u0007evil-06"
+}

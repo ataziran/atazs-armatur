@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The session's peer name (the name other sessions use with `SendMessage`, e.g.
+  `atazs-armatur-06`) under the folder on line 2, read from Claude Code's session registry in
+  `~/.claude/sessions/` (or `$CLAUDE_CONFIG_DIR`). Without a registry entry the spot stays
+  empty. It gives way before the `ses` meter on a narrow terminal. Thanks @ioxoi.
+
+### Fixed
+
+- A working directory reached through a symlink shows the branch of the repository it points
+  into, not of the repository around the link. Thanks @ioxoi.
+- A JSON object followed by a stray `}` or `]` shows waiting rows like any other trailing data,
+  instead of being read as a valid payload. Thanks @ioxoi.
+
 ## [0.2.0] - 2026-09-24
 
 Upgrading from 0.1.0: the entries marked **Behaviour change** change what the line shows.

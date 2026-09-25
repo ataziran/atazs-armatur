@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -25,6 +26,23 @@ func TestDecodeShape(t *testing.T) {
 				t.Errorf("decode(%q) ok = %v, want %v", tc.in, ok, tc.wantOK)
 			}
 		})
+	}
+}
+
+func TestDecodeTrailingData(t *testing.T) {
+	const payload = `{"cwd":"/project","context_window":{"used_percentage":42}}`
+	for _, suffix := range []string{"}", "]", "} junk", "] {}", "{}", "null", " junk"} {
+		t.Run(suffix, func(t *testing.T) {
+			s, ok := decode([]byte(payload + suffix))
+			if !ok || !reflect.DeepEqual(s, session{}) {
+				t.Errorf("decode with suffix %q = (%+v, %v), want empty session and true", suffix, s, ok)
+			}
+		})
+	}
+	// JSON whitespace after the payload is valid and must retain its readings.
+	s, ok := decode([]byte(payload + " \t\r\n"))
+	if !ok || sessionDir(s) != "/project" || s.ContextWindow.UsedPercentage == nil || *s.ContextWindow.UsedPercentage != 42 {
+		t.Errorf("decode with trailing whitespace = (%+v, %v), want the original readings", s, ok)
 	}
 }
 

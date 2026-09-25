@@ -48,6 +48,7 @@ type env struct {
 	color      bool
 	dir        string  // folder shown: from the payload, else the process's
 	branch     string  // checked out in dir
+	peer       string  // name other sessions address this one by
 	modTime    float64 // transcript's last change, Unix seconds
 	hasModTime bool
 	clock      string // idle mark: ◷, or ○ where the console font lacks it
@@ -146,6 +147,16 @@ func renderLines(s session, e env) string {
 	lines := []string{left + strings.Repeat(" ", pad) + rightAlign(rows[0], blockWidth)}
 	for _, r := range rows[1:] {
 		lines = append(lines, rightAlign(r, cols))
+	}
+
+	// Line 2: the session's peer name under the folder, where the ses row
+	// leaves room. It gives way before the meter, like the branch on line 1.
+	peer := sanitize(e.peer)
+	for peer != "" && displayWidth(peer) > cols-blockWidth-2 {
+		peer = shorten(peer, "")
+	}
+	if peer != "" {
+		lines[1] = frame + peer + reset + strings.Repeat(" ", max(1, cols-blockWidth-displayWidth(peer))) + rightAlign(rows[1], blockWidth)
 	}
 
 	// Each line starts with RESET too: it clears stale SGR state and keeps the

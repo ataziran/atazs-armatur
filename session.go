@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 )
 
 // session is the part of Claude Code's status payload this program reads.
@@ -11,14 +12,16 @@ import (
 // enforces it: a field of the wrong shape fails the decode, which blanks the
 // status line. A missing or null field leaves the zero value: a meter without
 // its value shows as waiting, and a missing working directory falls through to
-// the next source. Three fields must survive a wrong type instead: current_dir and cwd
-// fall through to the next source, and resets_at accepts numbers as well as
-// numeric strings. Those are `any` and are checked where they are used.
+// the next source. Four fields must survive a wrong type instead: current_dir
+// and cwd fall through to the next source, session_id counts as absent, and
+// resets_at accepts numbers as well as numeric strings. Those are `any` and
+// are checked where they are used.
 type session struct {
 	Workspace struct {
 		CurrentDir any `json:"current_dir"`
 	} `json:"workspace"`
 	CWD            any    `json:"cwd"`
+	SessionID      any    `json:"session_id"`
 	TranscriptPath string `json:"transcript_path"`
 	ContextWindow  struct {
 		UsedPercentage *float64 `json:"used_percentage"`
@@ -44,6 +47,12 @@ func sessionDir(s session) string {
 	return dir
 }
 
+// sessionID is the payload's session_id; "" when absent or not a string.
+func sessionID(s session) string {
+	id, _ := s.SessionID.(string)
+	return id
+}
+
 // decode reads the payload. ok is false only for a JSON object whose shape
 // does not match: that is malformed input and the caller renders nothing.
 // Anything that is not a single JSON object -- empty stdin, an array, plain
@@ -63,7 +72,9 @@ func decode(stdin []byte) (session, bool) {
 		return session{}, false
 	}
 	// Anything after the first value makes the payload invalid, not malformed.
-	if dec.More() {
+	// More only checks for array/object elements, so it misses stray ] or }.
+	// One token is enough to tell; decoding the rest would parse all of it.
+	if _, err := dec.Token(); err != io.EOF {
 		return session{}, true
 	}
 	return s, true

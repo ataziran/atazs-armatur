@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -13,6 +14,52 @@ func write(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGitBranchSymlinkedDirectory(t *testing.T) {
+	root := t.TempDir()
+	repo := filepath.Join(root, "repo")
+	write(t, filepath.Join(repo, ".git", "HEAD"), "ref: refs/heads/target\n")
+	subdir := filepath.Join(repo, "sub")
+	if err := os.Mkdir(subdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, inRepo := range []bool{false, true} {
+		name := "outside-repository"
+		if inRepo {
+			name = "inside-other-repository"
+		}
+		t.Run(name, func(t *testing.T) {
+			parent := filepath.Join(root, name)
+			if err := os.Mkdir(parent, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if inRepo {
+				write(t, filepath.Join(parent, ".git", "HEAD"), "ref: refs/heads/wrong\n")
+			}
+			link := filepath.Join(parent, "linked-subdir")
+			if err := os.Symlink(subdir, link); err != nil {
+				if runtime.GOOS == "windows" {
+					t.Skipf("symlink creation unavailable: %v", err)
+				}
+				t.Fatal(err)
+			}
+			if got := gitBranch(link); got != "target" {
+				t.Errorf("gitBranch(%q) = %q, want target", link, got)
+			}
+		})
+	}
+}
+
+// A working directory that no longer exists (rm -rf while the session sits
+// in it) cannot be resolved; the walk falls back to the path as given.
+func TestGitBranchDeletedDirectory(t *testing.T) {
+	repo := t.TempDir()
+	write(t, filepath.Join(repo, ".git", "HEAD"), "ref: refs/heads/main\n")
+	gone := filepath.Join(repo, "build", "gone")
+	if got := gitBranch(gone); got != "main" {
+		t.Errorf("gitBranch(%q) = %q, want main", gone, got)
 	}
 }
 

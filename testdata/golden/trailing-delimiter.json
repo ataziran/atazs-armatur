@@ -1,0 +1,7 @@
+{
+ "stdin": "{\"cwd\":\"/wrong-dir\",\"context_window\":{\"used_percentage\":42}}]",
+ "cols": 80,
+ "now": 1800000000.0,
+ "branch": "main",
+ "getcwd": "/tmp/fallbackdir"
+}

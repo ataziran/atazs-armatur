@@ -50,6 +50,7 @@ Fields read from the payload:
 | `rate_limits.seven_day.resets_at`       | the `week` countdown, Unix seconds              |
 | `transcript_path`                       | the idle mark, via the file's modification time |
 | `workspace.current_dir`, then `cwd`     | folder name and branch lookup directory         |
+| `session_id`                            | the peer name on line two, via the registry     |
 
 `used_percentage` is calculated by Claude Code. The program does not compute context use from
 token counts.
@@ -71,7 +72,8 @@ All other fields are ignored.
 - **Transcript.** One `stat` on `transcript_path` for its modification time. The content is
   never opened. If the path is empty or the `stat` fails, there is no idle mark.
 - **Git branch.** From files only:
-  1. Walk up from the working directory to the first `.git`.
+  1. Resolve symlinks in the working directory, then walk up to the first `.git`. A directory
+     that cannot be resolved (deleted, a dangling link) is walked as given.
   2. If `.git` is a directory, read `.git/HEAD`.
   3. If `.git` is a file (a linked worktree), read its `gitdir: <path>` line and read `HEAD` in
      that directory. A relative path is resolved against the worktree.
@@ -81,12 +83,19 @@ All other fields are ignored.
 
   `git` is not executed. A subprocess would cost a fork per repaint, and a `git` that hangs on a
   slow network mount or a stuck lock would hang the status line with it.
-- **Environment.** `COLUMNS`, `NO_COLOR`, and on Windows `WT_SESSION`.
+- **Peer name.** Claude Code registers every running session in
+  `<config>/sessions/<pid>.json`, where `<config>` is `$CLAUDE_CONFIG_DIR` or `~/.claude`. The
+  file whose `sessionId` equals the payload's `session_id` gives the `name` shown on line 2, the
+  one other sessions use to message this one. A resumed session keeps its id under a new pid and
+  the old file may linger, so of several matches the most recently updated wins. With no match,
+  or with no `session_id`, nothing shows. The registry is internal to Claude Code and
+  undocumented; if its format changes, the name is simply missing.
+- **Environment.** `COLUMNS`, `NO_COLOR`, `CLAUDE_CONFIG_DIR`, and on Windows `WT_SESSION`.
 - **Terminal size.** See [Terminal width](#terminal-width).
 
 ## What it does not do
 
-It does not use the network, call an API, read a config file, write to disk, spend tokens, or
+It does not use the network, call an API, read `settings.json`, write to disk, spend tokens, or
 start a subprocess. It writes only to stdout, and to stderr for usage errors.
 
 ## Output
@@ -101,7 +110,8 @@ dir › branch           ctx  ━━━━━━╺━━━━━━━━━  
 ```
 
 - Line one: folder name and branch on the left, the `ctx` row flush right.
-- Lines two and three: the `ses` and `week` rows, right-aligned.
+- Line two: the session's peer name on the left, if known, the `ses` row flush right.
+- Line three: the `week` row, right-aligned.
 
 A malformed payload (see [Malformed input](#malformed-input)) prints a single line holding only a
 reset. An unexpected runtime failure is recovered and prints the same; no stack trace reaches
@@ -221,6 +231,9 @@ does not fit:
    it is dropped.
 2. Then the folder name is shortened the same way, down to a single character (`…`).
 
+Line two treats the peer name like the branch: it takes the space left of the `ses` row, is
+shortened the same way, and is dropped at two characters or fewer. The meter is never truncated.
+
 The folder name is the last path component of the working directory. Both `/` and `\` count as
 separators, and trailing separators are ignored, so native Windows paths work. The root `/` shows
 as `/`.
@@ -242,7 +255,7 @@ handled as a unit.
 
 ## Sanitizing names
 
-Folder and branch names are untrusted. Before display:
+Folder, branch and peer names are untrusted. Before display:
 
 1. CSI sequences (`ESC [ … final byte`) with parameter bytes from `0-9;:?`, and OSC sequences
    (`ESC ] …` terminated by BEL or `ESC \`), are removed. A CSI with `<`, `=` or `>` loses only
@@ -274,6 +287,7 @@ Colours:
 | -------------------------------------- | ------------------------- |
 | folder name                            | bold, cyan (`1`, `36`)    |
 | branch                                 | magenta (`35`)            |
+| peer name                              | 256-colour 240, as frame  |
 | frame (labels, countdowns, `›`, `...`) | 256-colour 240            |
 | bar track                              | 256-colour 236            |
 | green / yellow / red                   | 256-colour 71 / 179 / 167 |
@@ -296,6 +310,8 @@ The payload is decoded into typed fields, and the field types define what counts
 | empty stdin, not starting with `{`, trailing data   | all rows waiting                     |
 | missing or `null` field                             | that row waits                       |
 | non-string `workspace.current_dir` or `cwd`         | falls through to the next source     |
+| non-string or missing `session_id`                  | no peer name                         |
+| no session registry entry for `session_id`          | no peer name                         |
 | `resets_at` as a numeric string                     | accepted                             |
 | `resets_at` not a number, NaN, infinite, `1e999`    | no countdown                         |
 | `resets_at` in the past                             | the row waits                        |
@@ -339,6 +355,7 @@ done | sort -n | sed -n 11p                  # median of 21 rounds
 | `session.go`                       | payload struct and decoding                               |
 | `render.go`                        | layout, meters, countdowns, sanitizing, colours           |
 | `git.go`                           | branch from `.git/HEAD` and worktree `gitdir:` files      |
+| `peer.go`                          | peer name from Claude Code's session registry             |
 | `term.go`                          | `COLUMNS` and the width cap                               |
 | `term_unix.go`, `term_linux.go`    | `TIOCGWINSZ`, the ancestor walk, `/dev/tty`               |
 | `term_darwin.go`, `term_other.go`  | stubs for platforms without the walk or any query         |
