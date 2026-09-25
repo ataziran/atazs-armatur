@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-25
+
+Upgrading from 0.2.0: the entries marked **Behaviour change** change what the line shows.
+
 ### Added
 
 - The session's peer name (the name other sessions use with `SendMessage`, e.g.
@@ -15,10 +19,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
-- A working directory reached through a symlink shows the branch of the repository it points
-  into, not of the repository around the link. Thanks @ioxoi.
-- A JSON object followed by a stray `}` or `]` shows waiting rows like any other trailing data,
-  instead of being read as a valid payload. Thanks @ioxoi.
+- **Behaviour change:** A working directory reached through a symlink shows the branch of the
+  repository it points into, not of the repository around the link. Thanks @ioxoi.
+- **Behaviour change:** A JSON object followed by a stray `}` or `]` shows waiting rows like any
+  other trailing data, instead of being read as a valid payload. Thanks @ioxoi.
 
 ## [0.2.0] - 2026-09-24
 
@@ -77,6 +81,7 @@ First release.
   usage, and an unknown option exits 2.
 - Release binaries for six targets with `SHA256SUMS` and a build provenance attestation.
 
-[Unreleased]: https://github.com/ataziran/atazs-armatur/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ataziran/atazs-armatur/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ataziran/atazs-armatur/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ataziran/atazs-armatur/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ataziran/atazs-armatur/releases/tag/v0.1.0
