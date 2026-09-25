@@ -3,9 +3,9 @@
 [![CI][ci-badge]][ci]
 [![License: GPL-3.0][license-badge]](LICENSE)
 
-A status line for [Claude Code](https://code.claude.com) that shows context usage and the 5-hour
-and weekly usage limits with reset countdowns. One static binary, standard library only, no
-config file.
+A status line for [Claude Code](https://code.claude.com) that shows context usage, the 5-hour
+and weekly usage limits with reset countdowns, and the peer name other sessions use to message
+this one. One static binary, standard library only, no config file.
 
 ![Status line: folder and branch, peer name atazs-armatur-06, context 24%, 5-hour limit 91% resetting in 40m, weekly limit 15% resetting in 4d 9h](docs/statusline.svg)
 
@@ -67,17 +67,16 @@ Then merge this into `~/.claude/settings.json`; on Windows append `.exe`
 
 ## What it shows
 
-| Row    | Measures                                            |
-| ------ | --------------------------------------------------- |
-| `ctx`  | Context window used by the current conversation     |
-| `ses`  | 5-hour (session) usage limit, with time until reset |
-| `week` | 7-day usage limit, with time until reset            |
+| Where        | Shows                                               |
+| ------------ | --------------------------------------------------- |
+| line 1, left | Folder and git branch                               |
+| line 2, left | Peer name                                           |
+| `ctx`        | Context window used by the current conversation     |
+| `ses`        | 5-hour (session) usage limit, with time until reset |
+| `week`       | 7-day usage limit, with time until reset            |
 
-The first line also shows the folder and git branch on the left. Line 2 shows the session's
-peer name, if Claude Code provides one. Other sessions can reach this one by that name, so you
-can tell one session to message another directly. The name comes from Claude Code's internal
-session registry; without an entry the spot stays empty.
-
+- **Peer name.** Tell Claude "ask `project-02` to review this" and it messages that session
+  directly. From Claude Code's session registry; empty without an entry.
 - **Colour.** Green below 50%, yellow from 50%, red from 80%, on every row.
 - **Bars.** 16 cells wide with half-cell resolution. Bars and percentages round down, so 99.6%
   shows as 99% and a bar is only full at 100%.
@@ -91,8 +90,8 @@ session registry; without an entry the spot stays empty.
 Idle, with no `week` value yet (`NO_COLOR`, 64 columns):
 
 ```text
-project                         ◷ctx  ━━━━━━╺━━━━━━━━━   38%
-                          2h41  ◷ses  ━━━━━━━━━━━━╶───   75%
+project › main                  ◷ctx  ━━━━━━╺━━━━━━━━━   38%
+project-02                2h41  ◷ses  ━━━━━━━━━━━━╶───   75%
                                ◷week  ────────────────   ...
 ```
 
