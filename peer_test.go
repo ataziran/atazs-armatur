@@ -15,7 +15,8 @@ func TestPeerName(t *testing.T) {
 	}
 	for name, body := range map[string]string{
 		"1.json": `{"sessionId":"aaaa-1","name":"other-01"}`,
-		"2.json": `{"sessionId":"d9be6c2e-4d31","name":"atazs-armatur-06"}`,
+		"2.json": `{"sessionId":"d9be6c2e-4d31","name":"atazs-armatur-06","updatedAt":2}`,
+		"9.json": `{"sessionId":"d9be6c2e-4d31","name":"stale-old-pid","updatedAt":1}`,
 		"3.json": `not json`,
 		"4.key":  `{"sessionId":"bbbbbbbb-2","name":"ignored"}`,
 	} {

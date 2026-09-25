@@ -132,10 +132,12 @@ binary prints three lines on stdout and exits. Run by hand, it answers `--versio
 - **Reads.** `context_window.used_percentage`, `rate_limits`, `transcript_path` and the working
   directory (`workspace.current_dir`, then `cwd`, then its own). Of the transcript it reads only
   the modification time, with one `stat`, never the content. The branch comes from `.git/HEAD`,
-  for a linked worktree via its `gitdir:` path; a detached HEAD shows as `@<id>`. To find the
+  for a linked worktree via its `gitdir:` path; a detached HEAD shows as `@<id>`. The session's
+  peer name comes from Claude Code's own session registry, `~/.claude/sessions/<pid>.json` (or
+  under `$CLAUDE_CONFIG_DIR`), matched on `session_id`. To find the
   terminal width it may also ask `/dev/tty` or, on Linux, the terminal its parent processes hold
   (`/proc/<pid>/stat` and `/proc/<pid>/fd/{2,1,0}`, at most six levels up), read-only.
-- **No side effects.** It does not use the network, call an API, read a config file, write to
+- **No side effects.** It does not use the network, call an API, read `settings.json`, write to
   disk, spend tokens, or start a subprocess, git included.
 - **Untrusted names.** CSI and OSC escape sequences and all C0 and C1 control characters are
   removed from folder and branch names, so a directory named `$'\e[2J'` shows up as text instead

@@ -11,9 +11,10 @@ import (
 // enforces it: a field of the wrong shape fails the decode, which blanks the
 // status line. A missing or null field leaves the zero value: a meter without
 // its value shows as waiting, and a missing working directory falls through to
-// the next source. Four fields must survive a wrong type instead: current_dir and cwd
-// fall through to the next source, session_id is treated as absent, and resets_at accepts numbers as well as
-// numeric strings. Those are `any` and are checked where they are used.
+// the next source. Four fields must survive a wrong type instead: current_dir
+// and cwd fall through to the next source, session_id counts as absent, and
+// resets_at accepts numbers as well as numeric strings. Those are `any` and
+// are checked where they are used.
 type session struct {
 	Workspace struct {
 		CurrentDir any `json:"current_dir"`
