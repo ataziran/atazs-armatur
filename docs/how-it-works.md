@@ -72,7 +72,8 @@ All other fields are ignored.
 - **Transcript.** One `stat` on `transcript_path` for its modification time. The content is
   never opened. If the path is empty or the `stat` fails, there is no idle mark.
 - **Git branch.** From files only:
-  1. Resolve symlinks in the working directory, then walk up to the first `.git`.
+  1. Resolve symlinks in the working directory, then walk up to the first `.git`. A directory
+     that cannot be resolved (deleted, a dangling link) is walked as given.
   2. If `.git` is a directory, read `.git/HEAD`.
   3. If `.git` is a file (a linked worktree), read its `gitdir: <path>` line and read `HEAD` in
      that directory. A relative path is resolved against the worktree.

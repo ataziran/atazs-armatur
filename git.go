@@ -46,9 +46,11 @@ func shortCommit(head string) string {
 // holds HEAD. In a linked worktree .git is a file naming the real one.
 func gitDir(cwd string) (string, bool) {
 	// Follow the physical parents, not the parents of a symlink into a repo.
+	// A directory that cannot be resolved (deleted, dangling link, loop) is
+	// walked as given, as before.
 	dir, err := filepath.EvalSymlinks(cwd)
 	if err != nil {
-		return "", false
+		dir = cwd
 	}
 	for {
 		candidate := filepath.Join(dir, ".git")

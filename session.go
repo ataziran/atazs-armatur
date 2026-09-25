@@ -73,8 +73,8 @@ func decode(stdin []byte) (session, bool) {
 	}
 	// Anything after the first value makes the payload invalid, not malformed.
 	// More only checks for array/object elements, so it misses stray ] or }.
-	var extra json.RawMessage
-	if err := dec.Decode(&extra); err != io.EOF {
+	// One token is enough to tell; decoding the rest would parse all of it.
+	if _, err := dec.Token(); err != io.EOF {
 		return session{}, true
 	}
 	return s, true

@@ -52,6 +52,17 @@ func TestGitBranchSymlinkedDirectory(t *testing.T) {
 	}
 }
 
+// A working directory that no longer exists (rm -rf while the session sits
+// in it) cannot be resolved; the walk falls back to the path as given.
+func TestGitBranchDeletedDirectory(t *testing.T) {
+	repo := t.TempDir()
+	write(t, filepath.Join(repo, ".git", "HEAD"), "ref: refs/heads/main\n")
+	gone := filepath.Join(repo, "build", "gone")
+	if got := gitBranch(gone); got != "main" {
+		t.Errorf("gitBranch(%q) = %q, want main", gone, got)
+	}
+}
+
 func TestGitBranch(t *testing.T) {
 	root := t.TempDir()
 
