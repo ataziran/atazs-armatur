@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 )
 
 // session is the part of Claude Code's status payload this program reads.
@@ -63,7 +64,9 @@ func decode(stdin []byte) (session, bool) {
 		return session{}, false
 	}
 	// Anything after the first value makes the payload invalid, not malformed.
-	if dec.More() {
+	// More only checks for array/object elements, so it misses stray ] or }.
+	var extra json.RawMessage
+	if err := dec.Decode(&extra); err != io.EOF {
 		return session{}, true
 	}
 	return s, true
