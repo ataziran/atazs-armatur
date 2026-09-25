@@ -35,3 +35,21 @@ func TestPeerName(t *testing.T) {
 		}
 	}
 }
+
+func TestPeerNameLiteralConfigPath(t *testing.T) {
+	for _, name := range []string{"config[1]", "config["} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			dir := filepath.Join(root, name)
+			t.Setenv("CLAUDE_CONFIG_DIR", dir)
+			write(t, filepath.Join(dir, "sessions", "1.json"),
+				`{"sessionId":"session-123","name":"expected-peer"}`)
+			// A glob would treat [1] as a pattern and read this other config.
+			write(t, filepath.Join(root, "config1", "sessions", "1.json"),
+				`{"sessionId":"session-123","name":"wrong-peer"}`)
+			if got := peerName("session-123"); got != "expected-peer" {
+				t.Errorf("peerName with config %q = %q, want expected-peer", dir, got)
+			}
+		})
+	}
+}

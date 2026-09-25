@@ -25,10 +25,15 @@ func peerName(sessionID string) string {
 		}
 		dir = filepath.Join(home, ".claude")
 	}
-	files, _ := filepath.Glob(filepath.Join(dir, "sessions", "*.json"))
+	dir = filepath.Join(dir, "sessions")
+	// Read the directory literally: config paths may contain glob characters.
+	files, _ := os.ReadDir(dir)
 	name, newest := "", -1.0
 	for _, f := range files {
-		raw, err := os.ReadFile(f)
+		if f.IsDir() || filepath.Ext(f.Name()) != ".json" {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, f.Name()))
 		if err != nil {
 			continue
 		}
