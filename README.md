@@ -73,7 +73,8 @@ Then merge this into `~/.claude/settings.json`; on Windows append `.exe`
 | `ses`  | 5-hour (session) usage limit, with time until reset |
 | `week` | 7-day usage limit, with time until reset            |
 
-The first line also shows the folder and git branch on the left.
+The first line also shows the folder and git branch on the left; the second shows the session's
+peer name, which other Claude Code sessions use to message this one.
 
 - **Colour.** Green below 50%, yellow from 50%, red from 80%, on every row.
 - **Bars.** 16 cells wide with half-cell resolution. Bars and percentages round down, so 99.6%

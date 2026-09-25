@@ -2,10 +2,11 @@
 // three-line status:
 //
 //	dir › branch                  ctx  ━━━━╸━━━   38%
-//	                  2h41        ses  ━━━━━━╺━   75%
+//	atazs-armatur-06  2h41        ses  ━━━━━━╺━   75%
 //	                  3d 4h      week  ━━━━━━━╸   96%
 //
-// Reads stdin, .git/HEAD and the transcript's modification time; writes only
+// Reads stdin, .git/HEAD, the transcript's modification time and Claude
+// Code's session registry (for the name on line 2); writes only
 // stdout. No network, no API.
 package main
 
@@ -70,6 +71,7 @@ func main() {
 			e.dir, _ = os.Getwd()
 		}
 		e.branch = gitBranch(e.dir)
+		e.peer = peerName(sessionID(s))
 		e.modTime, e.hasModTime = transcriptModTime(s.TranscriptPath)
 	}
 	_, _ = os.Stdout.WriteString(render(s, ok, e))

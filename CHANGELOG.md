@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The session's peer name (the name other sessions use with `SendMessage`, e.g.
+  `atazs-armatur-06`) under the folder on line 2, read from Claude Code's session registry in
+  `~/.claude/sessions/` (or `$CLAUDE_CONFIG_DIR`). Without a match the first eight characters of
+  `session_id` show instead. It gives way before the `ses` meter on a narrow terminal.
+
 ## [0.2.0] - 2026-09-24
 
 Upgrading from 0.1.0: the entries marked **Behaviour change** change what the line shows.
