@@ -87,9 +87,10 @@ All other fields are ignored.
   `<config>/sessions/<pid>.json`, where `<config>` is `$CLAUDE_CONFIG_DIR` or `~/.claude`. The
   file whose `sessionId` equals the payload's `session_id` gives the `name` shown on line 2, the
   one other sessions use to message this one. A resumed session keeps its id under a new pid and
-  the old file may linger, so of several matches the most recently updated wins. With no match,
-  or with no `session_id`, nothing shows. The registry is internal to Claude Code and
-  undocumented; if its format changes, the name is simply missing.
+  the old file may linger, so of several matches the most recently updated wins. Only regular
+  `.json` files are read, so a FIFO in the directory cannot block. With no match, or with no
+  `session_id`, nothing shows. The registry is internal to Claude Code and undocumented; if its
+  format changes, the name is simply missing.
 - **Environment.** `COLUMNS`, `NO_COLOR`, `CLAUDE_CONFIG_DIR`, and on Windows `WT_SESSION`.
 - **Terminal size.** See [Terminal width](#terminal-width).
 
@@ -104,9 +105,9 @@ Three lines, each starting and ending with an SGR reset (`ESC[0m`). The leading 
 stale attributes and keeps the renderer from trimming the leading spaces.
 
 ```text
-dir › branch           ctx  ━━━━━━╺━━━━━━━━━   38%
-                2h41   ses  ━━━━━━━━━━━━╺━━━   75%
-               3d 4h  week  ━━━━━━━━━━━━━━━╺   96%
+dir › branch              ctx  ━━━━━━╺━━━━━━━━━   38%
+atazs-armatur-06   2h41   ses  ━━━━━━━━━━━━╺━━━   75%
+                  3d 4h  week  ━━━━━━━━━━━━━━━╺   96%
 ```
 
 - Line one: folder name and branch on the left, the `ctx` row flush right.

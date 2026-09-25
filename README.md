@@ -7,7 +7,7 @@ A status line for [Claude Code](https://code.claude.com) that shows context usag
 and weekly usage limits with reset countdowns. One static binary, standard library only, no
 config file.
 
-![Status line: context 24%, 5-hour limit 91% resetting in 40m, weekly limit 15% resetting in 4d 9h](docs/statusline.svg)
+![Status line: folder and branch, peer name atazs-armatur-06, context 24%, 5-hour limit 91% resetting in 40m, weekly limit 15% resetting in 4d 9h](docs/statusline.svg)
 
 I wanted the information I plan my workflow around in view at all times: the folder and branch
 to tell sessions apart, context use, and the session and weekly limits with countdowns. The
@@ -131,19 +131,20 @@ The [Quick start](#quick-start) is the whole installation. Release assets:
 Claude Code runs the command on every status line update and passes session JSON on stdin. The
 binary prints three lines on stdout and exits. Run by hand, it answers `--version` and `--help`.
 
-- **Reads.** `context_window.used_percentage`, `rate_limits`, `transcript_path` and the working
-  directory (`workspace.current_dir`, then `cwd`, then its own). Of the transcript it reads only
-  the modification time, with one `stat`, never the content. The branch comes from `.git/HEAD`,
-  for a linked worktree via its `gitdir:` path; a detached HEAD shows as `@<id>`. The session's
-  peer name comes from Claude Code's own session registry, `~/.claude/sessions/<pid>.json` (or
-  under `$CLAUDE_CONFIG_DIR`), matched on `session_id`. To find the
-  terminal width it may also ask `/dev/tty` or, on Linux, the terminal its parent processes hold
-  (`/proc/<pid>/stat` and `/proc/<pid>/fd/{2,1,0}`, at most six levels up), read-only.
+- **Reads.** `context_window.used_percentage`, `rate_limits`, `transcript_path`, `session_id` and
+  the working directory (`workspace.current_dir`, then `cwd`, then its own). Of the transcript it
+  reads only the modification time, with one `stat`, never the content. The branch comes from
+  `.git/HEAD`, for a linked worktree via its `gitdir:` path, with symlinks in the working
+  directory resolved first; a detached HEAD shows as `@<id>`. The session's peer name comes from
+  Claude Code's own session registry, `~/.claude/sessions/<pid>.json` (or under
+  `$CLAUDE_CONFIG_DIR`), matched on `session_id`. To find the terminal width it may also ask
+  `/dev/tty` or, on Linux, the terminal its parent processes hold (`/proc/<pid>/stat` and
+  `/proc/<pid>/fd/{2,1,0}`, at most six levels up), read-only.
 - **No side effects.** It does not use the network, call an API, read `settings.json`, write to
   disk, spend tokens, or start a subprocess, git included.
 - **Untrusted names.** CSI and OSC escape sequences and all C0 and C1 control characters are
-  removed from folder and branch names, so a directory named `$'\e[2J'` shows up as text instead
-  of clearing your screen.
+  removed from folder, branch and peer names, so a directory named `$'\e[2J'` shows up as text
+  instead of clearing your screen.
 - **Bad input.** A missing value makes its row wait, out-of-range numbers are clamped, and a field
   of the wrong type (`"used_percentage": "50"`) gives a single empty line. It never prints a stack
   trace.

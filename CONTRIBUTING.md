@@ -49,9 +49,10 @@ Fields of `<case>.json`:
 | `no_color` | bool   | behave as if `NO_COLOR` were set                                  |
 | `mtime`    | number | transcript modification time, Unix seconds; omit for none         |
 | `clock`    | string | idle mark glyph; defaults to `◷`                                  |
+| `peer`     | string | peer name as it would be read from the session registry           |
 
 The cases cover colour thresholds, half cells, truncation, wide characters, escapes in names,
-waiting and idle rows, and malformed input.
+peer names, waiting and idle rows, and malformed input.
 
 New behaviour gets a new `.json` and `.out` pair. To write the `.out` files from the current
 code:
@@ -65,8 +66,9 @@ sequences readable.
 
 The renderer (`render.go`) does not touch the system, which is what lets the goldens pin every
 input as a value. Code that reads files, the environment or the terminal lives in `main.go`,
-`git.go` and the `term*.go` files; `git_test.go`, `session_test.go`, `term_test.go`,
-`width_test.go` and `version_test.go` cover the parts outside the renderer.
+`git.go`, `peer.go` and the `term*.go` files; `git_test.go`, `peer_test.go`,
+`peer_unix_test.go`, `session_test.go`, `term_test.go`, `width_test.go` and `version_test.go`
+cover the parts outside the renderer.
 
 ## Line endings
 
