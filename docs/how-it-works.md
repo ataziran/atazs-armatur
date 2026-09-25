@@ -230,8 +230,8 @@ does not fit:
    it is dropped.
 2. Then the folder name is shortened the same way, down to a single character (`…`).
 
-Line two treats the peer name like the branch: the same space, shortened the same way, dropped at
-two characters or fewer. The meter is never truncated.
+Line two treats the peer name like the branch: it takes the space left of the `ses` row, is
+shortened the same way, and is dropped at two characters or fewer. The meter is never truncated.
 
 The folder name is the last path component of the working directory. Both `/` and `\` count as
 separators, and trailing separators are ignored, so native Windows paths work. The root `/` shows

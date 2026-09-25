@@ -30,7 +30,8 @@ func peerName(sessionID string) string {
 	files, _ := os.ReadDir(dir)
 	name, newest := "", -1.0
 	for _, f := range files {
-		if f.IsDir() || filepath.Ext(f.Name()) != ".json" {
+		// Regular files only: a FIFO or device would block the read.
+		if !f.Type().IsRegular() || filepath.Ext(f.Name()) != ".json" {
 			continue
 		}
 		raw, err := os.ReadFile(filepath.Join(dir, f.Name()))

@@ -152,7 +152,7 @@ func renderLines(s session, e env) string {
 	// Line 2: the session's peer name under the folder, where the ses row
 	// leaves room. It gives way before the meter, like the branch on line 1.
 	peer := sanitize(e.peer)
-	for len([]rune(peer)) > 1 && displayWidth(peer) > cols-blockWidth-2 {
+	for peer != "" && displayWidth(peer) > cols-blockWidth-2 {
 		peer = shorten(peer, "")
 	}
 	if peer != "" {

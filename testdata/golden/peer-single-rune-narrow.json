@@ -1,0 +1,6 @@
+{
+ "stdin": "{\"workspace\": {\"current_dir\": \"/home/u/nonspecific\"}, \"context_window\": {\"used_percentage\": 38}, \"rate_limits\": {\"five_hour\": {\"used_percentage\": 75, \"resets_at\": 1800009690.0}}}",
+ "cols": 38,
+ "now": 1800000000.0,
+ "peer": "漢"
+}
