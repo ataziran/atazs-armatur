@@ -26,8 +26,8 @@ func TestPeerName(t *testing.T) {
 	}
 	for id, want := range map[string]string{
 		"d9be6c2e-4d31": "atazs-armatur-06",
-		"bbbbbbbb-2":    "bbbbbbbb",
-		"short":         "short",
+		"bbbbbbbb-2":    "",
+		"short":         "",
 		"":              "",
 	} {
 		if got := peerName(id); got != want {
@@ -51,5 +51,12 @@ func TestPeerNameLiteralConfigPath(t *testing.T) {
 				t.Errorf("peerName with config %q = %q, want expected-peer", dir, got)
 			}
 		})
+	}
+}
+
+func TestPeerNameNoRegistry(t *testing.T) {
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	if got := peerName("session-123"); got != "" {
+		t.Errorf("peerName without a registry = %q, want \"\"", got)
 	}
 }

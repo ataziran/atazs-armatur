@@ -11,8 +11,8 @@ import (
 // running session in <config>/sessions/<pid>.json, and the one whose
 // sessionId matches carries it. A resumed session keeps its id under a new
 // pid, and the old file may linger, so of several matches the most recently
-// updated wins. Without a match the first eight characters of the session id
-// stand in; "" when the payload names no session.
+// updated wins. "" without a match: without a registry entry the session
+// cannot be messaged, so no stand-in would be an address.
 func peerName(sessionID string) string {
 	if sessionID == "" {
 		return ""
@@ -21,7 +21,7 @@ func peerName(sessionID string) string {
 	if dir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return shortID(sessionID)
+			return ""
 		}
 		dir = filepath.Join(home, ".claude")
 	}
@@ -49,15 +49,5 @@ func peerName(sessionID string) string {
 			name, newest = reg.Name, reg.UpdatedAt
 		}
 	}
-	if name == "" {
-		return shortID(sessionID)
-	}
 	return name
-}
-
-func shortID(id string) string {
-	if r := []rune(id); len(r) > 8 {
-		return string(r[:8])
-	}
-	return id
 }

@@ -10,8 +10,8 @@ All notable changes to this project are documented here. The format follows
 
 - The session's peer name (the name other sessions use with `SendMessage`, e.g.
   `atazs-armatur-06`) under the folder on line 2, read from Claude Code's session registry in
-  `~/.claude/sessions/` (or `$CLAUDE_CONFIG_DIR`). Without a match the first eight characters of
-  `session_id` show instead. It gives way before the `ses` meter on a narrow terminal.
+  `~/.claude/sessions/` (or `$CLAUDE_CONFIG_DIR`). Without a registry entry the spot stays
+  empty. It gives way before the `ses` meter on a narrow terminal. Thanks @ioxoi.
 
 ## [0.2.0] - 2026-09-24
 

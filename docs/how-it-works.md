@@ -86,8 +86,9 @@ All other fields are ignored.
   `<config>/sessions/<pid>.json`, where `<config>` is `$CLAUDE_CONFIG_DIR` or `~/.claude`. The
   file whose `sessionId` equals the payload's `session_id` gives the `name` shown on line 2, the
   one other sessions use to message this one. A resumed session keeps its id under a new pid and
-  the old file may linger, so of several matches the most recently updated wins. With no match
-  the first eight characters of `session_id` show instead; with no `session_id`, nothing.
+  the old file may linger, so of several matches the most recently updated wins. With no match,
+  or with no `session_id`, nothing shows. The registry is internal to Claude Code and
+  undocumented; if its format changes, the name is simply missing.
 - **Environment.** `COLUMNS`, `NO_COLOR`, `CLAUDE_CONFIG_DIR`, and on Windows `WT_SESSION`.
 - **Terminal size.** See [Terminal width](#terminal-width).
 
@@ -309,7 +310,7 @@ The payload is decoded into typed fields, and the field types define what counts
 | missing or `null` field                             | that row waits                       |
 | non-string `workspace.current_dir` or `cwd`         | falls through to the next source     |
 | non-string or missing `session_id`                  | no peer name                         |
-| no session registry entry for `session_id`          | first eight characters of the id     |
+| no session registry entry for `session_id`          | no peer name                         |
 | `resets_at` as a numeric string                     | accepted                             |
 | `resets_at` not a number, NaN, infinite, `1e999`    | no countdown                         |
 | `resets_at` in the past                             | the row waits                        |
