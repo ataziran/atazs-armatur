@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The model's display name (`model.display_name`, e.g. `Opus 5.5`) centred on line 1. It only
+  takes space the folder and branch leave, and gives way first on a narrow terminal.
+
 ## [0.3.0] - 2026-09-25
 
 Upgrading from 0.2.0: the entries marked **Behaviour change** change what the line shows.

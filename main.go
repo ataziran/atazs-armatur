@@ -1,7 +1,7 @@
 // Command atazs-armatur reads Claude Code session JSON from stdin and prints a
 // three-line status:
 //
-//	dir › branch                  ctx  ━━━━╸━━━   38%
+//	dir › branch   Opus 5.5       ctx  ━━━━╸━━━   38%
 //	atazs-armatur-06  2h41        ses  ━━━━━━╺━   75%
 //	                  3d 4h      week  ━━━━━━━╸   96%
 //

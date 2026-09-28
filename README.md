@@ -70,6 +70,7 @@ Then merge this into `~/.claude/settings.json`; on Windows append `.exe`
 | Where        | Shows                                               |
 | ------------ | --------------------------------------------------- |
 | line 1, left | Folder and git branch                               |
+| line 1, mid  | Model                                               |
 | line 2, left | Peer name                                           |
 | `ctx`        | Context window used by the current conversation     |
 | `ses`        | 5-hour (session) usage limit, with time until reset |
@@ -77,6 +78,8 @@ Then merge this into `~/.claude/settings.json`; on Windows append `.exe`
 
 - **Peer name.** Tell Claude "ask `project-02` to review this" and it messages that session
   directly. From Claude Code's session registry; empty without an entry.
+- **Model.** The model's display name (e.g. `Opus 5.5`), centred on line 1. It gives way first
+  on a narrow terminal.
 - **Colour.** Green below 50%, yellow from 50%, red from 80%, on every row.
 - **Bars.** 16 cells wide with half-cell resolution. Bars and percentages round down, so 99.6%
   shows as 99% and a bar is only full at 100%.

@@ -52,7 +52,7 @@ Fields of `<case>.json`:
 | `peer`     | string | peer name as it would be read from the session registry           |
 
 The cases cover colour thresholds, half cells, truncation, wide characters, escapes in names,
-peer names, waiting and idle rows, and malformed input.
+peer and model names, waiting and idle rows, and malformed input.
 
 New behaviour gets a new `.json` and `.out` pair. To write the `.out` files from the current
 code:

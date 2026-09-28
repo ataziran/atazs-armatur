@@ -51,6 +51,7 @@ Fields read from the payload:
 | `transcript_path`                       | the idle mark, via the file's modification time |
 | `workspace.current_dir`, then `cwd`     | folder name and branch lookup directory         |
 | `session_id`                            | the peer name on line two, via the registry     |
+| `model.display_name`                    | the model name in the middle of line one        |
 
 `used_percentage` is calculated by Claude Code. The program does not compute context use from
 token counts.
@@ -105,12 +106,13 @@ Three lines, each starting and ending with an SGR reset (`ESC[0m`). The leading 
 stale attributes and keeps the renderer from trimming the leading spaces.
 
 ```text
-dir › branch              ctx  ━━━━━━╺━━━━━━━━━   38%
+dir › branch   Opus 5.5   ctx  ━━━━━━╺━━━━━━━━━   38%
 atazs-armatur-06   2h41   ses  ━━━━━━━━━━━━╺━━━   75%
                   3d 4h  week  ━━━━━━━━━━━━━━━╺   96%
 ```
 
-- Line one: folder name and branch on the left, the `ctx` row flush right.
+- Line one: folder name and branch on the left, the model in the middle, the `ctx` row flush
+  right.
 - Line two: the session's peer name on the left, if known, the `ses` row flush right.
 - Line three: the `week` row, right-aligned.
 
@@ -232,6 +234,11 @@ does not fit:
    it is dropped.
 2. Then the folder name is shortened the same way, down to a single character (`…`).
 
+The model name takes only the space the text leaves. It is centred on the whole line, or in the
+gap between text and `ctx` row where the centre would come within 2 columns of either. It needs 2
+columns of space on each side; without them it is shortened the same way and dropped at two
+characters or fewer, before the branch gives up anything.
+
 Line two treats the peer name like the branch: it takes the space left of the `ses` row, is
 shortened the same way, and is dropped at two characters or fewer. The meter is never truncated.
 
@@ -256,7 +263,7 @@ handled as a unit.
 
 ## Sanitizing names
 
-Folder, branch and peer names are untrusted. Before display:
+Folder, branch, peer and model names are untrusted. Before display:
 
 1. CSI sequences (`ESC [ … final byte`) with parameter bytes from `0-9;:?`, and OSC sequences
    (`ESC ] …` terminated by BEL or `ESC \`), are removed. A CSI with `<`, `=` or `>` loses only
@@ -289,11 +296,12 @@ Colours:
 | folder name                            | bold, cyan (`1`, `36`)    |
 | branch                                 | magenta (`35`)            |
 | peer name                              | 256-colour 240, as frame  |
+| model name                             | terminal default          |
 | frame (labels, countdowns, `›`, `...`) | 256-colour 240            |
 | bar track                              | 256-colour 236            |
 | green / yellow / red                   | 256-colour 71 / 179 / 167 |
 
-Folder and branch follow the terminal theme; meters and frame need 256-colour support in the
+Folder, branch and model follow the terminal theme; meters and frame need 256-colour support in the
 terminal and in tmux or screen. The dim attribute (`ESC[2m`) is never used: conhost, winpty and
 some tmux setups drop it, and the grey frame would then render as bright as the content.
 
@@ -312,6 +320,7 @@ The payload is decoded into typed fields, and the field types define what counts
 | missing or `null` field                             | that row waits                       |
 | non-string `workspace.current_dir` or `cwd`         | falls through to the next source     |
 | non-string or missing `session_id`                  | no peer name                         |
+| `model` not an object, `display_name` not a string  | no model name                        |
 | no session registry entry for `session_id`          | no peer name                         |
 | `resets_at` as a numeric string                     | accepted                             |
 | `resets_at` not a number, NaN, infinite, `1e999`    | no countdown                         |

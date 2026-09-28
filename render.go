@@ -143,8 +143,7 @@ func renderLines(s session, e env) string {
 	}
 
 	left := compose(name, branch)
-	pad := max(1, cols-blockWidth-displayWidth(left))
-	lines := []string{left + strings.Repeat(" ", pad) + rightAlign(rows[0], blockWidth)}
+	lines := []string{left + middle(sanitize(modelName(s)), displayWidth(left), cols, blockWidth) + rightAlign(rows[0], blockWidth)}
 	for _, r := range rows[1:] {
 		lines = append(lines, rightAlign(r, cols))
 	}
@@ -166,6 +165,27 @@ func renderLines(s session, e env) string {
 		b.WriteString(reset + l + reset + "\n")
 	}
 	return b.String()
+}
+
+// middle fills the gap between line 1's text and its meter, with the model
+// centred on the whole line. Where the centre would touch either side it
+// centres in the gap instead; it gives way before the branch and the folder,
+// so it only takes room they leave.
+func middle(model string, leftWidth, cols, blockWidth int) string {
+	gap := max(1, cols-blockWidth-leftWidth)
+	for model != "" && displayWidth(model)+4 > gap {
+		model = shorten(model, "")
+	}
+	if model == "" {
+		return strings.Repeat(" ", gap)
+	}
+	w := displayWidth(model)
+	// Columns before the model, counted from the end of the left text.
+	before := (cols-w)/2 - leftWidth
+	if before < 2 || before+w > gap-2 {
+		before = (gap - w) / 2
+	}
+	return strings.Repeat(" ", before) + model + strings.Repeat(" ", gap-before-w)
 }
 
 // shorten drops the last two runes and appends '…'; at two runes or fewer it

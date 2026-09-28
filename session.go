@@ -12,14 +12,15 @@ import (
 // enforces it: a field of the wrong shape fails the decode, which blanks the
 // status line. A missing or null field leaves the zero value: a meter without
 // its value shows as waiting, and a missing working directory falls through to
-// the next source. Four fields must survive a wrong type instead: current_dir
-// and cwd fall through to the next source, session_id counts as absent, and
-// resets_at accepts numbers as well as numeric strings. Those are `any` and
-// are checked where they are used.
+// the next source. Five fields must survive a wrong type instead: current_dir
+// and cwd fall through to the next source, session_id and model count as
+// absent, and resets_at accepts numbers as well as numeric strings. Those are
+// `any` and are checked where they are used.
 type session struct {
 	Workspace struct {
 		CurrentDir any `json:"current_dir"`
 	} `json:"workspace"`
+	Model          any    `json:"model"`
 	CWD            any    `json:"cwd"`
 	SessionID      any    `json:"session_id"`
 	TranscriptPath string `json:"transcript_path"`
@@ -51,6 +52,14 @@ func sessionDir(s session) string {
 func sessionID(s session) string {
 	id, _ := s.SessionID.(string)
 	return id
+}
+
+// modelName is the payload's model.display_name; "" when absent or not a
+// string, or when model is not an object.
+func modelName(s session) string {
+	m, _ := s.Model.(map[string]any)
+	name, _ := m["display_name"].(string)
+	return name
 }
 
 // decode reads the payload. ok is false only for a JSON object whose shape
