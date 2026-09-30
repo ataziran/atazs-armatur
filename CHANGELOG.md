@@ -10,6 +10,9 @@ All notable changes to this project are documented here. The format follows
 
 - The model's display name (`model.display_name`, e.g. `Opus 5.5`) centred on line 1. It only
   takes space the folder and branch leave, and gives way first on a narrow terminal.
+- The email of the logged-in account under the model on line 2, read from
+  `oauthAccount.emailAddress` in Claude Code's `~/.claude.json` (or
+  `$CLAUDE_CONFIG_DIR/.claude.json`). Empty with an API key; gives way before the peer name.
 
 ## [0.3.0] - 2026-09-25
 

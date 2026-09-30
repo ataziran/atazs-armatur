@@ -49,6 +49,7 @@ type env struct {
 	dir        string  // folder shown: from the payload, else the process's
 	branch     string  // checked out in dir
 	peer       string  // name other sessions address this one by
+	email      string  // account Claude Code is logged in with
 	modTime    float64 // transcript's last change, Unix seconds
 	hasModTime bool
 	clock      string // idle mark: ◷, or ○ where the console font lacks it
@@ -143,7 +144,8 @@ func renderLines(s session, e env) string {
 	}
 
 	left := compose(name, branch)
-	lines := []string{left + middle(sanitize(modelName(s)), displayWidth(left), cols, blockWidth) + rightAlign(rows[0], blockWidth)}
+	model, centre := middle(sanitize(modelName(s)), "", displayWidth(left), cols, blockWidth, cols)
+	lines := []string{left + model + rightAlign(rows[0], blockWidth)}
 	for _, r := range rows[1:] {
 		lines = append(lines, rightAlign(r, cols))
 	}
@@ -154,8 +156,14 @@ func renderLines(s session, e env) string {
 	for peer != "" && displayWidth(peer) > cols-blockWidth-2 {
 		peer = shorten(peer, "")
 	}
-	if peer != "" {
-		lines[1] = frame + peer + reset + strings.Repeat(" ", max(1, cols-blockWidth-displayWidth(peer))) + rightAlign(rows[1], blockWidth)
+	// The account email sits under the model, centred on the same column.
+	email := sanitize(e.email)
+	if peer != "" || email != "" {
+		mid, _ := middle(email, frame, displayWidth(peer), cols, blockWidth, centre)
+		if peer != "" {
+			peer = frame + peer + reset
+		}
+		lines[1] = peer + mid + rightAlign(rows[1], blockWidth)
 	}
 
 	// Each line starts with RESET too: it clears stale SGR state and keeps the
@@ -167,25 +175,32 @@ func renderLines(s session, e env) string {
 	return b.String()
 }
 
-// middle fills the gap between line 1's text and its meter, with the model
-// centred on the whole line. Where the centre would touch either side it
-// centres in the gap instead; it gives way before the branch and the folder,
-// so it only takes room they leave.
-func middle(model string, leftWidth, cols, blockWidth int) string {
+// middle fills the gap between a line's text and its meter, with s centred
+// on centre2, counted in half columns so odd and even widths centre alike:
+// the model on the whole line (cols), the email under the model. Where that
+// would touch either side it centres in the gap instead; it gives way before
+// the text on the left, so it only takes room that text leaves. A non-empty
+// col colours s. It also returns where s ended up centred, or centre2 when s
+// is dropped.
+func middle(s, col string, leftWidth, cols, blockWidth, centre2 int) (string, int) {
 	gap := max(1, cols-blockWidth-leftWidth)
-	for model != "" && displayWidth(model)+4 > gap {
-		model = shorten(model, "")
+	for s != "" && displayWidth(s)+4 > gap {
+		s = shorten(s, "")
 	}
-	if model == "" {
-		return strings.Repeat(" ", gap)
+	if s == "" {
+		return strings.Repeat(" ", gap), centre2
 	}
-	w := displayWidth(model)
-	// Columns before the model, counted from the end of the left text.
-	before := (cols-w)/2 - leftWidth
+	w := displayWidth(s)
+	// Columns before s, counted from the end of the left text.
+	before := (centre2-w)/2 - leftWidth
 	if before < 2 || before+w > gap-2 {
 		before = (gap - w) / 2
 	}
-	return strings.Repeat(" ", before) + model + strings.Repeat(" ", gap-before-w)
+	centred := 2*(leftWidth+before) + w
+	if col != "" {
+		s = col + s + reset
+	}
+	return strings.Repeat(" ", before) + s + strings.Repeat(" ", gap-before-w), centred
 }
 
 // shorten drops the last two runes and appends '…'; at two runes or fewer it

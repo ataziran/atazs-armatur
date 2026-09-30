@@ -1,13 +1,13 @@
 // Command atazs-armatur reads Claude Code session JSON from stdin and prints a
 // three-line status:
 //
-//	dir › branch   Opus 5.5       ctx  ━━━━╸━━━   38%
-//	atazs-armatur-06  2h41        ses  ━━━━━━╺━   75%
-//	                  3d 4h      week  ━━━━━━━╸   96%
+//	dir › branch          Opus 5.5                   ctx  ━━━━━━╺━━━━━━━━━   38%
+//	atazs-armatur-06   me@example.com         2h41   ses  ━━━━━━━━━━━━╺━━━   75%
+//	                                         3d 4h  week  ━━━━━━━━━━━━━━━╺   96%
 //
-// Reads stdin, .git/HEAD, the transcript's modification time and Claude
-// Code's session registry (for the name on line 2); writes only
-// stdout. No network, no API.
+// Reads stdin, .git/HEAD, the transcript's modification time, Claude Code's
+// session registry (for the name on line 2) and its .claude.json (for the
+// account email); writes only stdout. No network, no API.
 package main
 
 import (
@@ -72,6 +72,7 @@ func main() {
 		}
 		e.branch = gitBranch(e.dir)
 		e.peer = peerName(sessionID(s))
+		e.email = accountEmail()
 		e.modTime, e.hasModTime = transcriptModTime(s.TranscriptPath)
 	}
 	_, _ = os.Stdout.WriteString(render(s, ok, e))

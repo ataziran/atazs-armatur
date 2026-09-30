@@ -72,6 +72,7 @@ Then merge this into `~/.claude/settings.json`; on Windows append `.exe`
 | line 1, left | Folder and git branch                               |
 | line 1, mid  | Model                                               |
 | line 2, left | Peer name                                           |
+| line 2, mid  | Email of the logged-in account                      |
 | `ctx`        | Context window used by the current conversation     |
 | `ses`        | 5-hour (session) usage limit, with time until reset |
 | `week`       | 7-day usage limit, with time until reset            |
@@ -80,6 +81,8 @@ Then merge this into `~/.claude/settings.json`; on Windows append `.exe`
   directly. From Claude Code's session registry; empty without an entry.
 - **Model.** The model's display name (e.g. `Opus 5.5`), centred on line 1. It gives way first
   on a narrow terminal.
+- **Account.** The email of the account Claude Code is logged in with, under the model. From
+  Claude Code's `~/.claude.json`; empty with an API key. It gives way before the peer name.
 - **Colour.** Green below 50%, yellow from 50%, red from 80%, on every row.
 - **Bars.** 16 cells wide with half-cell resolution. Bars and percentages round down, so 99.6%
   shows as 99% and a bar is only full at 100%.
@@ -139,13 +142,15 @@ binary prints three lines on stdout and exits. Run by hand, it answers `--versio
   `.git/HEAD`, for a linked worktree via its `gitdir:` path, with symlinks in the working
   directory resolved first; a detached HEAD shows as `@<id>`. The session's peer name comes from
   Claude Code's own session registry, `~/.claude/sessions/<pid>.json` (or under
-  `$CLAUDE_CONFIG_DIR`), matched on `session_id`. To find the terminal width it may also ask
+  `$CLAUDE_CONFIG_DIR`), matched on `session_id`. The account email comes from
+  `oauthAccount.emailAddress` in Claude Code's `~/.claude.json` (or
+  `$CLAUDE_CONFIG_DIR/.claude.json`). To find the terminal width it may also ask
   `/dev/tty` or, on Linux, the terminal its parent processes hold (`/proc/<pid>/stat` and
   `/proc/<pid>/fd/{2,1,0}`, at most six levels up), read-only.
 - **No side effects.** It does not use the network, call an API, read `settings.json`, write to
   disk, spend tokens, or start a subprocess, git included.
 - **Untrusted names.** CSI and OSC escape sequences and all C0 and C1 control characters are
-  removed from folder, branch and peer names, so a directory named `$'\e[2J'` shows up as text
+  removed from folder, branch, peer, model and account names, so a directory named `$'\e[2J'` shows up as text
   instead of clearing your screen.
 - **Bad input.** A missing value makes its row wait, out-of-range numbers are clamped, and a field
   of the wrong type (`"used_percentage": "50"`) gives a single empty line. It never prints a stack

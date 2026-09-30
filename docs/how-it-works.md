@@ -92,6 +92,13 @@ All other fields are ignored.
   `.json` files are read, so a FIFO in the directory cannot block. With no match, or with no
   `session_id`, nothing shows. The registry is internal to Claude Code and undocumented; if its
   format changes, the name is simply missing.
+- **Account email.** From Claude Code's global config, `$CLAUDE_CONFIG_DIR/.claude.json` when
+  that is set and `~/.claude.json` otherwise: `oauthAccount.emailAddress`, shown in the middle of
+  line 2. Only a regular file is read, and only that one field is kept. With an API key there is
+  no `oauthAccount` and nothing shows; a missing file, invalid JSON or a non-string value show
+  nothing too. The file is internal to Claude Code; if its format changes, the email is simply
+  missing. It is a few hundred kilobytes on a long-used install, parsed in well under a
+  millisecond.
 - **Environment.** `COLUMNS`, `NO_COLOR`, `CLAUDE_CONFIG_DIR`, and on Windows `WT_SESSION`.
 - **Terminal size.** See [Terminal width](#terminal-width).
 
@@ -106,14 +113,15 @@ Three lines, each starting and ending with an SGR reset (`ESC[0m`). The leading 
 stale attributes and keeps the renderer from trimming the leading spaces.
 
 ```text
-dir › branch   Opus 5.5   ctx  ━━━━━━╺━━━━━━━━━   38%
-atazs-armatur-06   2h41   ses  ━━━━━━━━━━━━╺━━━   75%
-                  3d 4h  week  ━━━━━━━━━━━━━━━╺   96%
+dir › branch          Opus 5.5                   ctx  ━━━━━━╺━━━━━━━━━   38%
+atazs-armatur-06   me@example.com         2h41   ses  ━━━━━━━━━━━━╺━━━   75%
+                                         3d 4h  week  ━━━━━━━━━━━━━━━╺   96%
 ```
 
 - Line one: folder name and branch on the left, the model in the middle, the `ctx` row flush
   right.
-- Line two: the session's peer name on the left, if known, the `ses` row flush right.
+- Line two: the session's peer name on the left, if known, the account email under the model,
+  the `ses` row flush right.
 - Line three: the `week` row, right-aligned.
 
 A malformed payload (see [Malformed input](#malformed-input)) prints a single line holding only a
@@ -241,6 +249,8 @@ characters or fewer, before the branch gives up anything.
 
 Line two treats the peer name like the branch: it takes the space left of the `ses` row, is
 shortened the same way, and is dropped at two characters or fewer. The meter is never truncated.
+The account email is placed like the model, centred on the column the model is centred on (the
+middle of the line when there is no model), and gives way before the peer name.
 
 The folder name is the last path component of the working directory. Both `/` and `\` count as
 separators, and trailing separators are ignored, so native Windows paths work. The root `/` shows
@@ -263,7 +273,7 @@ handled as a unit.
 
 ## Sanitizing names
 
-Folder, branch, peer and model names are untrusted. Before display:
+Folder, branch, peer and model names and the account email are untrusted. Before display:
 
 1. CSI sequences (`ESC [ … final byte`) with parameter bytes from `0-9;:?`, and OSC sequences
    (`ESC ] …` terminated by BEL or `ESC \`), are removed. A CSI with `<`, `=` or `>` loses only
@@ -297,6 +307,7 @@ Colours:
 | branch                                 | magenta (`35`)            |
 | peer name                              | 256-colour 240, as frame  |
 | model name                             | terminal default          |
+| account email                          | 256-colour 240, as frame  |
 | frame (labels, countdowns, `›`, `...`) | 256-colour 240            |
 | bar track                              | 256-colour 236            |
 | green / yellow / red                   | 256-colour 71 / 179 / 167 |
@@ -321,6 +332,7 @@ The payload is decoded into typed fields, and the field types define what counts
 | non-string `workspace.current_dir` or `cwd`         | falls through to the next source     |
 | non-string or missing `session_id`                  | no peer name                         |
 | `model` not an object, `display_name` not a string  | no model name                        |
+| no `.claude.json`, or no string `emailAddress`      | no account email                     |
 | no session registry entry for `session_id`          | no peer name                         |
 | `resets_at` as a numeric string                     | accepted                             |
 | `resets_at` not a number, NaN, infinite, `1e999`    | no countdown                         |
@@ -366,6 +378,7 @@ done | sort -n | sed -n 11p                  # median of 21 rounds
 | `render.go`                        | layout, meters, countdowns, sanitizing, colours           |
 | `git.go`                           | branch from `.git/HEAD` and worktree `gitdir:` files      |
 | `peer.go`                          | peer name from Claude Code's session registry             |
+| `account.go`                       | account email from Claude Code's `.claude.json`           |
 | `term.go`                          | `COLUMNS` and the width cap                               |
 | `term_unix.go`, `term_linux.go`    | `TIOCGWINSZ`, the ancestor walk, `/dev/tty`               |
 | `term_darwin.go`, `term_other.go`  | stubs for platforms without the walk or any query         |
