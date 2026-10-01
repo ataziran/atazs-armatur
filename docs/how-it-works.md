@@ -12,7 +12,7 @@ releases, see [CONTRIBUTING.md](../CONTRIBUTING.md).
 - [Meter rows](#meter-rows)
 - [Waiting and idle](#waiting-and-idle)
 - [Terminal width](#terminal-width)
-- [Line one and truncation](#line-one-and-truncation)
+- [Layout and truncation](#layout-and-truncation)
 - [Display width](#display-width)
 - [Sanitizing names](#sanitizing-names)
 - [Characters and colours](#characters-and-colours)
@@ -28,10 +28,16 @@ stdin, and shows what the command prints on stdout.
 | Invocation                        | Behaviour                                           | Exit |
 | --------------------------------- | --------------------------------------------------- | ---: |
 | payload on stdin                  | prints the status line on stdout                    |    0 |
+| `--email`, payload on stdin       | the same, with the account email on line three      |    0 |
 | `-v`, `--version`                 | prints `atazs-armatur <version> (<7-digit commit>)` |    0 |
 | `-h`, `--help`                    | prints the usage on stdout                          |    0 |
-| any other argument                | `unknown option: <arg>` and the usage on stderr     |    2 |
-| no arguments, stdin is a terminal | usage on stderr instead of waiting for input        |    2 |
+| an unknown option, anywhere       | an error naming it and the usage on stderr          |    2 |
+| no `-h`/`-v`, stdin is a terminal | usage on stderr instead of waiting for input        |    2 |
+
+Every argument is checked before anything runs. A typo such as `--emial` in the `statusLine`
+command exits 2 with `atazs-armatur: unknown option "--emial"` on stderr instead of being ignored;
+Claude Code shows only stdout, so the status line stays empty until the command is fixed.
+Options combine: `--help` wins over `--version`, and either wins over `--email`.
 
 The version line comes from the build info the Go toolchain embeds (module version and
 `vcs.revision`); nothing is stamped in with `-ldflags`. Without a revision the commit is left
@@ -86,20 +92,25 @@ All other fields are ignored.
   slow network mount or a stuck lock would hang the status line with it.
 - **Peer name.** Claude Code registers every running session in
   `<config>/sessions/<pid>.json`, where `<config>` is `$CLAUDE_CONFIG_DIR` or `~/.claude`. The
-  file whose `sessionId` equals the payload's `session_id` gives the `name` shown on line 2, the
+  file whose `sessionId` equals the payload's `session_id` gives the `name` shown on line two, the
   one other sessions use to message this one. A resumed session keeps its id under a new pid and
   the old file may linger, so of several matches the most recently updated wins. Only regular
   `.json` files are read, so a FIFO in the directory cannot block. With no match, or with no
   `session_id`, nothing shows. The registry is internal to Claude Code and undocumented; if its
   format changes, the name is simply missing.
-- **Account email.** From Claude Code's global config, `$CLAUDE_CONFIG_DIR/.claude.json` when
-  that is set and `~/.claude.json` otherwise: `oauthAccount.emailAddress`, shown in the middle of
-  line 2. Only a regular file is read, and only that one field is kept. With an API key there is
-  no `oauthAccount` and nothing shows; a missing file, invalid JSON or a non-string value show
+- **Account email.** Only with `--email`; without it the config file is not opened.
+  `oauthAccount.emailAddress` from Claude Code's global config, found as Claude Code finds it:
+  `<config>/.config.json` if it exists (`<config>` is `$CLAUDE_CONFIG_DIR` or `~/.claude`), else
+  `$CLAUDE_CONFIG_DIR/.claude.json` when that is set and `~/.claude.json` otherwise, named
+  `.claude-custom-oauth.json` instead when `CLAUDE_CODE_CUSTOM_OAUTH_URL` is set. A set
+  `CLAUDE_CONFIG_DIR` without the file does not fall back to the home directory, which belongs
+  to another config. Only a regular file of at most 4 MiB is read, so a FIFO cannot block and a
+  grown file cannot slow every repaint, and only that one field is kept. With an API key there
+  is no `oauthAccount` and nothing shows; a missing file, invalid JSON or a non-string value show
   nothing too. The file is internal to Claude Code; if its format changes, the email is simply
-  missing. It is a few hundred kilobytes on a long-used install, parsed in well under a
-  millisecond.
-- **Environment.** `COLUMNS`, `NO_COLOR`, `CLAUDE_CONFIG_DIR`, and on Windows `WT_SESSION`.
+  missing. The cost is under [Startup time](#startup-time).
+- **Environment.** `COLUMNS`, `NO_COLOR`, `CLAUDE_CONFIG_DIR`, with `--email`
+  `CLAUDE_CODE_CUSTOM_OAUTH_URL`, and on Windows `WT_SESSION`.
 - **Terminal size.** See [Terminal width](#terminal-width).
 
 ## What it does not do
@@ -113,16 +124,15 @@ Three lines, each starting and ending with an SGR reset (`ESC[0m`). The leading 
 stale attributes and keeps the renderer from trimming the leading spaces.
 
 ```text
-dir › branch          Opus 5.5                   ctx  ━━━━━━╺━━━━━━━━━   38%
-atazs-armatur-06   me@example.com         2h41   ses  ━━━━━━━━━━━━╺━━━   75%
-                                         3d 4h  week  ━━━━━━━━━━━━━━━╺   96%
+dir › branch              Opus 5.5               ctx  ━━━━━━╺━━━━━━━━━   38%
+atazs-armatur-06                          2h41   ses  ━━━━━━━━━━━━╺━━━   75%
+me@example.com                           3d 4h  week  ━━━━━━━━━━━━━━━╺   96%
 ```
 
 - Line one: folder name and branch on the left, the model in the middle, the `ctx` row flush
   right.
-- Line two: the session's peer name on the left, if known, the account email under the model,
-  the `ses` row flush right.
-- Line three: the `week` row, right-aligned.
+- Line two: the session's peer name on the left, if known, the `ses` row flush right.
+- Line three: the account email on the left with `--email`, the `week` row flush right.
 
 A malformed payload (see [Malformed input](#malformed-input)) prints a single line holding only a
 reset. An unexpected runtime failure is recovered and prints the same; no stack trace reaches
@@ -232,9 +242,9 @@ measured in a live session.
 
 The meter rows are 35 columns wide, so below about 40 terminal columns they no longer fit.
 
-## Line one and truncation
+## Layout and truncation
 
-Line one holds `folder › branch`, at least one space, and the `ctx` row. The `ctx` row is never
+Line one holds `folder › branch`, the model if it fits, and the `ctx` row. The `ctx` row is never
 truncated. The space for the text is the layout width minus the row width minus 2. While the text
 does not fit:
 
@@ -242,15 +252,18 @@ does not fit:
    it is dropped.
 2. Then the folder name is shortened the same way, down to a single character (`…`).
 
-The model name takes only the space the text leaves. It is centred on the whole line, or in the
-gap between text and `ctx` row where the centre would come within 2 columns of either. It needs 2
-columns of space on each side; without them it is shortened the same way and dropped at two
-characters or fewer, before the branch gives up anything.
-
 Line two treats the peer name like the branch: it takes the space left of the `ses` row, is
 shortened the same way, and is dropped at two characters or fewer. The meter is never truncated.
-The account email is placed like the model, centred on the column the model is centred on (the
-middle of the line when there is no model), and gives way before the peer name.
+
+The model sits in the middle of the gap between the text and the `ctx` label, counted in half
+columns so odd and even widths centre alike. The gap ends at the idle mark's slot before the
+label, so the mark does not move the model. It takes only the space the text leaves and needs 2
+columns of space on either side; without them it is left out whole, never shortened, since a cut
+name says nothing. A name that is 0 columns wide after sanitizing counts as absent.
+
+Line three holds the account email like line two holds the peer name, but in full or not at all:
+it needs 2 columns of space to the `week` row. Without a shown email the line is the same as
+with no email at all.
 
 The folder name is the last path component of the working directory. Both `/` and `\` count as
 separators, and trailing separators are ignored, so native Windows paths work. The root `/` shows
@@ -329,18 +342,18 @@ The payload is decoded into typed fields, and the field types define what counts
 | field of the wrong type (`"used_percentage": "50"`) | a single empty line                  |
 | empty stdin, not starting with `{`, trailing data   | all rows waiting                     |
 | missing or `null` field                             | that row waits                       |
-| non-string `workspace.current_dir` or `cwd`         | falls through to the next source     |
-| non-string or missing `session_id`                  | no peer name                         |
-| `model` not an object, `display_name` not a string  | no model name                        |
-| no `.claude.json`, or no string `emailAddress`      | no account email                     |
-| no session registry entry for `session_id`          | no peer name                         |
+| percentage out of range                             | clamped: bar 0–100, number −999…9999 |
 | `resets_at` as a numeric string                     | accepted                             |
 | `resets_at` not a number, NaN, infinite, `1e999`    | no countdown                         |
 | `resets_at` in the past                             | the row waits                        |
-| percentage out of range                             | clamped: bar 0–100, number −999…9999 |
+| non-string `workspace.current_dir` or `cwd`         | falls through to the next source     |
 | no directory in payload or process                  | empty folder name                    |
+| `model` not an object, `display_name` not a string  | no model name                        |
+| non-string or missing `session_id`                  | no peer name                         |
+| no session registry entry for `session_id`          | no peer name                         |
 | transcript missing or unreadable                    | no idle mark                         |
 | unreadable `.git/HEAD` or `gitdir:` file            | no branch                            |
+| no config file, or no string `emailAddress`         | no account email                     |
 
 ## Startup time
 
@@ -348,25 +361,28 @@ The command runs on every update in every open session. Median per call, 21 roun
 sequential calls including the shell's fork and exec, on Linux 6.6 under WSL2, Ryzen 9 7950X3D,
 Go 1.27.1:
 
-| Command                 | Median per call | Range across rounds |
-| ----------------------- | --------------: | ------------------: |
-| `atazs-armatur`         |          2.2 ms |          2.1–2.3 ms |
-| `/bin/true`             |          0.6 ms |          0.6–0.6 ms |
-| `node -e ''` (v24.18.0) |         20.2 ms |        20.0–20.5 ms |
+| Command                   | Median per call | Range across rounds |
+| ------------------------- | --------------: | ------------------: |
+| `atazs-armatur`           |          2.4 ms |          2.3–2.4 ms |
+| `atazs-armatur --email`   |          2.6 ms |          2.5–2.7 ms |
+| `/bin/true`               |          0.7 ms |          0.6–0.7 ms |
+| `node -e ''` (v24.18.0)   |         20.2 ms |        20.0–20.5 ms |
 
-`/bin/true` is the cost of starting any process; the remaining 1.6 ms are the Go runtime and the
-binary's own work. `node -e ''` only starts the runtime, before any status line code loads.
-Reading a git branch did not change the median. Process start costs differ on native Linux and
-macOS. To repeat it (GNU `date`):
+`/bin/true` is the cost of starting any process; the remaining 1.7 ms are the Go runtime and the
+binary's own work. `--email` adds 0.2 ms with a 66 KB `.claude.json`; the file grows with use.
+`node -e ''` only starts the runtime, before any status line code loads. Reading a git branch did
+not change the median. Process start costs differ on native Linux and macOS. To repeat it (GNU
+`date`):
 
 ```bash
-printf '%s' '{"context_window":{"used_percentage":38},"rate_limits":{"five_hour":{"used_percentage":75,"resets_at":1800009690},"seven_day":{"used_percentage":96,"resets_at":1800273605}}}' > payload.json
+printf '%s' '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":38},"rate_limits":{"five_hour":{"used_percentage":75,"resets_at":1800009690},"seven_day":{"used_percentage":96,"resets_at":1800273605}}}' > payload.json
 export COLUMNS=80
 for r in $(seq 21); do
   s=$(date +%s%N)
   for i in $(seq 500); do ./atazs-armatur <payload.json >/dev/null; done
   echo $(( ($(date +%s%N) - s) / 500000 ))   # microseconds per call
 done | sort -n | sed -n 11p                  # median of 21 rounds
+# For --email, run the same loop with ./atazs-armatur --email.
 ```
 
 ## Source files
@@ -378,7 +394,7 @@ done | sort -n | sed -n 11p                  # median of 21 rounds
 | `render.go`                        | layout, meters, countdowns, sanitizing, colours           |
 | `git.go`                           | branch from `.git/HEAD` and worktree `gitdir:` files      |
 | `peer.go`                          | peer name from Claude Code's session registry             |
-| `account.go`                       | account email from Claude Code's `.claude.json`           |
+| `account.go`                       | account email from Claude Code's config file              |
 | `term.go`                          | `COLUMNS` and the width cap                               |
 | `term_unix.go`, `term_linux.go`    | `TIOCGWINSZ`, the ancestor walk, `/dev/tty`               |
 | `term_darwin.go`, `term_other.go`  | stubs for platforms without the walk or any query         |

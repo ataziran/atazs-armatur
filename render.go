@@ -124,13 +124,14 @@ func renderLines(s session, e env) string {
 		readings = append(readings, r)
 	}
 	rows := make([]string, len(readings))
+	ctxTail, blockWidth := "", 0
 	for i, r := range readings {
-		rows[i] = meterRow(r)
-	}
-
-	blockWidth := 0
-	for _, r := range rows {
-		blockWidth = max(blockWidth, displayWidth(r))
+		head, tail := meterRow(r)
+		if i == 0 {
+			ctxTail = tail
+		}
+		rows[i] = head + tail
+		blockWidth = max(blockWidth, displayWidth(rows[i]))
 	}
 
 	// Line 1: text left, ctx meter flush right. The meter is never truncated --
@@ -144,10 +145,24 @@ func renderLines(s session, e env) string {
 	}
 
 	left := compose(name, branch)
-	model, centre := middle(sanitize(modelName(s)), "", displayWidth(left), cols, blockWidth, cols)
-	lines := []string{left + model + rightAlign(rows[0], blockWidth)}
+	leftWidth := displayWidth(left)
+	pad := max(1, cols-blockWidth-leftWidth)
+	lines := []string{left + strings.Repeat(" ", pad) + rightAlign(rows[0], blockWidth)}
 	for _, r := range rows[1:] {
 		lines = append(lines, rightAlign(r, cols))
+	}
+
+	// The model sits in the middle of the gap between the text and the ctx
+	// label. The label starts at the idle mark's slot, so the mark does not
+	// move the model.
+	ctxAt := leftWidth + pad + blockWidth - displayWidth(ctxTail)
+	if model, ok := fill(sanitize(modelName(s)), leftWidth, ctxAt); ok {
+		lines[0] = left + model + ctxTail
+	}
+
+	// under puts a frame-coloured name left of a meter row, the row flush right.
+	under := func(name, row string) string {
+		return frame + name + reset + strings.Repeat(" ", cols-blockWidth-displayWidth(name)) + rightAlign(row, blockWidth)
 	}
 
 	// Line 2: the session's peer name under the folder, where the ses row
@@ -156,14 +171,14 @@ func renderLines(s session, e env) string {
 	for peer != "" && displayWidth(peer) > cols-blockWidth-2 {
 		peer = shorten(peer, "")
 	}
-	// The account email sits under the model, centred on the same column.
-	email := sanitize(e.email)
-	if peer != "" || email != "" {
-		mid, _ := middle(email, frame, displayWidth(peer), cols, blockWidth, centre)
-		if peer != "" {
-			peer = frame + peer + reset
-		}
-		lines[1] = peer + mid + rightAlign(rows[1], blockWidth)
+	if peer != "" {
+		lines[1] = under(peer, rows[1])
+	}
+
+	// Line 3: the account email under the peer name, in full or not at all,
+	// with 2 columns to the week row.
+	if email := sanitize(e.email); email != "" && displayWidth(email) <= cols-blockWidth-2 {
+		lines[2] = under(email, rows[2])
 	}
 
 	// Each line starts with RESET too: it clears stale SGR state and keeps the
@@ -175,32 +190,16 @@ func renderLines(s session, e env) string {
 	return b.String()
 }
 
-// middle fills the gap between a line's text and its meter, with s centred
-// on centre2, counted in half columns so odd and even widths centre alike:
-// the model on the whole line (cols), the email under the model. Where that
-// would touch either side it centres in the gap instead; it gives way before
-// the text on the left, so it only takes room that text leaves. A non-empty
-// col colours s. It also returns where s ended up centred, or centre2 when s
-// is dropped.
-func middle(s, col string, leftWidth, cols, blockWidth, centre2 int) (string, int) {
-	gap := max(1, cols-blockWidth-leftWidth)
-	for s != "" && displayWidth(s)+4 > gap {
-		s = shorten(s, "")
-	}
-	if s == "" {
-		return strings.Repeat(" ", gap), centre2
-	}
+// fill centres s in the gap between columns from and to and pads both sides.
+// ok is false when s is 0 columns wide or lacks 2 free columns on either
+// side: then it is left out whole, since a cut name says nothing.
+func fill(s string, from, to int) (string, bool) {
 	w := displayWidth(s)
-	// Columns before s, counted from the end of the left text.
-	before := (centre2-w)/2 - leftWidth
-	if before < 2 || before+w > gap-2 {
-		before = (gap - w) / 2
+	if w == 0 || to-from < w+4 {
+		return "", false
 	}
-	centred := 2*(leftWidth+before) + w
-	if col != "" {
-		s = col + s + reset
-	}
-	return strings.Repeat(" ", before) + s + strings.Repeat(" ", gap-before-w), centred
+	before := (to - from - w) / 2
+	return strings.Repeat(" ", before) + s + strings.Repeat(" ", to-from-w-before), true
 }
 
 // shorten drops the last two runes and appends '…'; at two runes or fewer it
@@ -349,7 +348,9 @@ type reading struct {
 	mark         string   // "" or the clock glyph
 }
 
-func meterRow(r reading) string {
+// meterRow draws one row in two parts: head is the countdown and the space
+// after it, tail runs from the label's first column (the mark's slot) on.
+func meterRow(r reading) (head, tail string) {
 	bar, num := track+strings.Repeat(thinBar, barWidth)+reset, frame+" ..."+reset
 	if r.pct != nil {
 		// Clamp before int(): converting a float beyond int64 is undefined,
@@ -368,6 +369,6 @@ func meterRow(r reading) string {
 			sep, lbl = " ", r.mark+lbl // "3d 4h  week" -> "3d 4h ◷week"
 		}
 	}
-	return fmt.Sprintf("%s%5s%s%s%s%s%s  %s  %s",
-		frame, r.timer, reset, sep, frame, lbl, reset, bar, num)
+	return fmt.Sprintf("%s%5s%s%s", frame, r.timer, reset, sep),
+		fmt.Sprintf("%s%s%s  %s  %s", frame, lbl, reset, bar, num)
 }
