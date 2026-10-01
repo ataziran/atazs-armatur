@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Upgrading from 0.3.0: the entries marked **Behaviour change** change what the line shows or how
+options are handled.
+
+### Added
+
+- **Behaviour change:** The model's display name (`model.display_name`, e.g. `Opus 5.5`) on
+  line 1, in the middle of the space between branch and meter. It is shown in full or not at all
+  and only takes room the folder and branch leave. Thanks @ioxoi.
+- `--email` shows the email of the logged-in account on line 3, under the peer name, read from
+  `oauthAccount.emailAddress` in Claude Code's config, found as Claude Code finds it (a legacy
+  `.config.json` first, then `~/.claude.json` or `$CLAUDE_CONFIG_DIR/.claude.json`). Without the
+  flag the config file is not opened. Empty with an API key; shown in full or not at all. Thanks
+  @ioxoi.
+
+### Changed
+
+- **Behaviour change:** Every argument is checked, not only the first. This only matters for
+  commands typed by hand: before, `--version --foo` printed the version and ignored `--foo`; now
+  any unknown option exits 2 with the usage. `-v -h` prints the usage, since `--help` wins over
+  `--version`. The error reads `atazs-armatur: unknown option "<arg>"` instead of
+  `unknown option: <arg>`.
+
 ## [0.3.0] - 2026-09-25
 
 Upgrading from 0.2.0: the entries marked **Behaviour change** change what the line shows.

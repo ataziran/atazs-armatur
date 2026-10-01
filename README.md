@@ -3,9 +3,9 @@
 [![CI][ci-badge]][ci]
 [![License: GPL-3.0][license-badge]](LICENSE)
 
-A status line for [Claude Code](https://code.claude.com) that shows context usage, the 5-hour
-and weekly usage limits with reset countdowns, and the peer name other sessions use to message
-this one. One static binary, standard library only, no config file.
+A status line for [Claude Code](https://code.claude.com) that shows the model, context usage,
+the 5-hour and weekly usage limits with reset countdowns, and the peer name other sessions use to
+message this one. One static binary, standard library only, no config file.
 
 ![Status line: folder and branch, peer name atazs-armatur-06, context 24%, 5-hour limit 91% resetting in 40m, weekly limit 15% resetting in 4d 9h](docs/statusline.svg)
 
@@ -70,13 +70,22 @@ Then merge this into `~/.claude/settings.json`; on Windows append `.exe`
 | Where        | Shows                                               |
 | ------------ | --------------------------------------------------- |
 | line 1, left | Folder and git branch                               |
+| line 1, mid  | Model, between branch and `ctx`                     |
 | line 2, left | Peer name                                           |
+| line 3, left | Email of the logged-in account, with `--email`      |
 | `ctx`        | Context window used by the current conversation     |
 | `ses`        | 5-hour (session) usage limit, with time until reset |
 | `week`       | 7-day usage limit, with time until reset            |
 
 - **Peer name.** Tell Claude "ask `project-02` to review this" and it messages that session
   directly. From Claude Code's session registry; empty without an entry.
+- **Model.** The model's display name (e.g. `Opus 5.5`), in the middle of the space between
+  branch and `ctx`.
+- **Account.** With `--email`, the email of the account Claude Code is logged in with, under the
+  peer name. From Claude Code's `~/.claude.json`; empty with an API key.
+- **Narrow terminals.** The meters always stay whole. The branch, the folder and the peer name
+  are shortened with `…`; model and email show in full or not at all, two columns clear of their
+  neighbours.
 - **Colour.** Green below 50%, yellow from 50%, red from 80%, on every row.
 - **Bars.** 16 cells wide with half-cell resolution. Bars and percentages round down, so 99.6%
   shows as 99% and a bar is only full at 100%.
@@ -90,7 +99,7 @@ Then merge this into `~/.claude/settings.json`; on Windows append `.exe`
 Idle, with no `week` value yet (`NO_COLOR`, 64 columns):
 
 ```text
-project › main                  ◷ctx  ━━━━━━╺━━━━━━━━━   38%
+project › main     Opus 5.5     ◷ctx  ━━━━━━╺━━━━━━━━━   38%
 project-02                2h41  ◷ses  ━━━━━━━━━━━━╶───   75%
                                ◷week  ────────────────   ...
 ```
@@ -118,39 +127,47 @@ The [Quick start](#quick-start) is the whole installation. Release assets:
   `$(go env GOPATH)/bin`. Only the release binaries are reproducible and attested.
 - **Settings.** `padding: 0` because the lines are already sized to the terminal. `refreshInterval`
   re-runs the command every 60 seconds, so countdowns keep moving while the session is idle.
+- **Account email.** Add `--email` to the command (`"~/.local/bin/atazs-armatur --email"`) to
+  see which account you are drawing on, useful with several subscriptions or machines; it is off
+  by default so the address is not in every screenshot.
 - **Try it first.** `--version` prints the release and the commit; this renders a sample line,
   with `week` waiting:
 
   ```bash
-  echo '{"context_window":{"used_percentage":38},"rate_limits":{"five_hour":{"used_percentage":75,"resets_at":'$(( $(date +%s) + 9660 ))'}}}' | COLUMNS=80 ~/.local/bin/atazs-armatur
+  echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":38},"rate_limits":{"five_hour":{"used_percentage":75,"resets_at":'$(( $(date +%s) + 9660 ))'}}}' | COLUMNS=80 ~/.local/bin/atazs-armatur
   ```
 
 ## What it does and does not do
 
 Claude Code runs the command on every status line update and passes session JSON on stdin. The
-binary prints three lines on stdout and exits. Run by hand, it answers `--version` and `--help`.
+binary prints three lines on stdout and exits. Run by hand, it answers `--version` and `--help`;
+an unknown option exits with status 2.
 
-- **Reads.** `context_window.used_percentage`, `rate_limits`, `transcript_path`, `session_id` and
-  the working directory (`workspace.current_dir`, then `cwd`, then its own). Of the transcript it
-  reads only the modification time, with one `stat`, never the content. The branch comes from
-  `.git/HEAD`, for a linked worktree via its `gitdir:` path, with symlinks in the working
-  directory resolved first; a detached HEAD shows as `@<id>`. The session's peer name comes from
-  Claude Code's own session registry, `~/.claude/sessions/<pid>.json` (or under
-  `$CLAUDE_CONFIG_DIR`), matched on `session_id`. To find the terminal width it may also ask
-  `/dev/tty` or, on Linux, the terminal its parent processes hold (`/proc/<pid>/stat` and
-  `/proc/<pid>/fd/{2,1,0}`, at most six levels up), read-only.
+- **Reads.** Only files and the payload, read-only:
+  - From the payload: `context_window.used_percentage`, `rate_limits`, `transcript_path`,
+    `session_id`, `model.display_name` and the working directory (`workspace.current_dir`, then
+    `cwd`, then its own).
+  - The transcript's modification time, with one `stat`; never its content.
+  - The branch from `.git/HEAD`, for a linked worktree via its `gitdir:` path, with symlinks in
+    the working directory resolved first; a detached HEAD shows as `@<id>`.
+  - The peer name from Claude Code's session registry, `~/.claude/sessions/<pid>.json` (or under
+    `$CLAUDE_CONFIG_DIR`), matched on `session_id`.
+  - Only with `--email`, `oauthAccount.emailAddress` from Claude Code's config: `.config.json` in
+    the config directory if present, else `~/.claude.json` (or `$CLAUDE_CONFIG_DIR/.claude.json`).
+  - For the terminal width, possibly `/dev/tty` or, on Linux, the terminal its parent processes
+    hold (`/proc/<pid>/stat` and `/proc/<pid>/fd/{2,1,0}`, at most six levels up).
 - **No side effects.** It does not use the network, call an API, read `settings.json`, write to
   disk, spend tokens, or start a subprocess, git included.
 - **Untrusted names.** CSI and OSC escape sequences and all C0 and C1 control characters are
-  removed from folder, branch and peer names, so a directory named `$'\e[2J'` shows up as text
-  instead of clearing your screen.
+  removed from folder, branch, peer and model names and the email, so a directory named
+  `$'\e[2J'` shows up as text instead of clearing your screen.
 - **Bad input.** A missing value makes its row wait, out-of-range numbers are clamped, and a field
   of the wrong type (`"used_percentage": "50"`) gives a single empty line. It never prints a stack
   trace.
 - **Width.** It comes from `COLUMNS`, which Claude Code sets, then from the terminal, then 80. Four
   columns stay free on the right, because Claude Code cuts every status line a few columns short
   of the edge.
-- **Cost.** About 2 ms per call, process start included
+- **Cost.** About 2.5 ms per call, process start included
   ([measured](docs/how-it-works.md#startup-time)).
 
 Field handling, the width sources per platform, truncation order and the character set are in
@@ -190,13 +207,17 @@ CCometixLine are the better tool.
 - **The idle mark appears while Claude is working.** Idle is judged by the modification time of
   the session transcript. A long tool call or a subagent does not write to it, so the mark
   appears during either once more than 5 minutes have passed.
+- **Model or email missing.** Both show only in full, so on a narrow terminal they disappear
+  instead of being cut; widen the window. The email also needs `--email` in the command and a
+  claude.ai login, not an API key.
 - **The line wraps or is cut off.** Outside Claude Code, export `COLUMNS`. On narrow terminals,
   notifications and the verbose-mode token counter share the row and can still cut into it.
 - **Colours look flat or the bar track is invisible.** The terminal, and tmux or screen if you
   use them, needs 256-colour support; the empty part of each bar is a dark grey from that palette.
 - **The countdown does not move.** An idle session triggers no updates; set `refreshInterval`.
 - **Nothing shows.** Accept the workspace trust dialog for the folder; Claude Code leaves the
-  status line blank until then. On Windows, check the forward slashes in `command`.
+  status line blank until then. On Windows, check the forward slashes in `command`. An unknown
+  option in `command` also leaves it blank; run the command by hand to see the error.
 
 ## Build from source
 

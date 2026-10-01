@@ -12,8 +12,9 @@ import (
 
 var update = flag.Bool("update", false, "rewrite the .out files")
 
-// Each testdata/golden/<case>.json pins stdin, width, clock, branch and
-// working directory; <case>.out is the expected output, byte for byte.
+// Each testdata/golden/<case>.json pins stdin, width, time, branch, working
+// directory, transcript time, idle mark, peer name and email; <case>.out is
+// the expected output, byte for byte.
 func TestGolden(t *testing.T) {
 	specs, err := filepath.Glob(filepath.Join("testdata", "golden", "*.json"))
 	if err != nil || len(specs) == 0 {
@@ -36,13 +37,14 @@ func TestGolden(t *testing.T) {
 				Mtime   *float64 `json:"mtime"`
 				Clock   string   `json:"clock"`
 				Peer    string   `json:"peer"`
+				Email   string   `json:"email"`
 			}
 			if err := json.Unmarshal(raw, &spec); err != nil {
 				t.Fatal(err)
 			}
 			s, ok := decode([]byte(spec.Stdin))
 			e := env{cols: spec.Cols, now: spec.Now, color: !spec.NoColor,
-				branch: spec.Branch, peer: spec.Peer, clock: cmp.Or(spec.Clock, "◷")}
+				branch: spec.Branch, peer: spec.Peer, email: spec.Email, clock: cmp.Or(spec.Clock, "◷")}
 			if e.dir = sessionDir(s); e.dir == "" {
 				e.dir = spec.Getcwd
 			}

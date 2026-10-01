@@ -1,13 +1,14 @@
 // Command atazs-armatur reads Claude Code session JSON from stdin and prints a
 // three-line status:
 //
-//	dir › branch                  ctx  ━━━━╸━━━   38%
-//	atazs-armatur-06  2h41        ses  ━━━━━━╺━   75%
-//	                  3d 4h      week  ━━━━━━━╸   96%
+//	dir › branch              Opus 5.5               ctx  ━━━━━━╺━━━━━━━━━   38%
+//	atazs-armatur-06                          2h41   ses  ━━━━━━━━━━━━╺━━━   75%
+//	me@example.com                           3d 4h  week  ━━━━━━━━━━━━━━━╺   96%
 //
-// Reads stdin, .git/HEAD, the transcript's modification time and Claude
-// Code's session registry (for the name on line 2); writes only
-// stdout. No network, no API.
+// Reads stdin, .git/HEAD, the transcript's modification time, Claude Code's
+// session registry (for the name on line 2) and, with --email, its config
+// (for the account email on line 3); writes only stdout, and stderr for usage
+// errors. No network, no API.
 package main
 
 import (
@@ -19,23 +20,27 @@ import (
 	"time"
 )
 
-const usage = `Usage: atazs-armatur [-v|--version] [-h|--help]
+const usage = `Usage: atazs-armatur [--email] [-v|--version] [-h|--help]
 
-Reads Claude Code's session JSON on stdin and prints the status line on stdout.`
+Reads Claude Code's session JSON on stdin and prints the status line on stdout.
+
+  --email        also show the logged-in account's email, from Claude Code's config
+  -v, --version  print the version and exit
+  -h, --help     print this help and exit`
 
 func main() {
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "-v", "--version":
-			info, ok := debug.ReadBuildInfo()
-			fmt.Println(formatVersion(info, ok))
-		case "-h", "--help":
-			fmt.Println(usage)
-		default:
-			fmt.Fprintln(os.Stderr, "unknown option: "+os.Args[1])
-			fmt.Fprintln(os.Stderr, usage)
-			os.Exit(2)
-		}
+	opts, err := parseArgs(os.Args[1:])
+	switch {
+	case err != nil:
+		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, usage)
+		os.Exit(2)
+	case opts.help:
+		fmt.Println(usage)
+		return
+	case opts.version:
+		info, ok := debug.ReadBuildInfo()
+		fmt.Println(formatVersion(info, ok))
 		return
 	}
 	// A terminal on stdin means nobody is piping a payload in: this is a person
@@ -72,9 +77,35 @@ func main() {
 		}
 		e.branch = gitBranch(e.dir)
 		e.peer = peerName(sessionID(s))
+		if opts.email {
+			e.email = accountEmail()
+		}
 		e.modTime, e.hasModTime = transcriptModTime(s.TranscriptPath)
 	}
 	_, _ = os.Stdout.WriteString(render(s, ok, e))
+}
+
+type options struct{ help, version, email bool }
+
+// parseArgs reads the whole command line. An unknown argument is an error, so
+// a typo in the statusLine command shows up instead of being ignored. Help
+// wins over version.
+func parseArgs(args []string) (options, error) {
+	var o options
+	for _, a := range args {
+		switch a {
+		case "-h", "--help":
+			o.help = true
+		case "-v", "--version":
+			o.version = true
+		case "--email":
+			o.email = true
+		default:
+			return options{}, fmt.Errorf("atazs-armatur: unknown option %q", a)
+		}
+	}
+	o.version = o.version && !o.help
+	return o, nil
 }
 
 // transcriptModTime returns when the session transcript last changed, in Unix
