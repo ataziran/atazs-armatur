@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-01
+
 Upgrading from 0.3.0: the entries marked **Behaviour change** change what the line shows or how
 options are handled.
 
@@ -103,7 +105,8 @@ First release.
   usage, and an unknown option exits 2.
 - Release binaries for six targets with `SHA256SUMS` and a build provenance attestation.
 
-[Unreleased]: https://github.com/ataziran/atazs-armatur/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ataziran/atazs-armatur/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ataziran/atazs-armatur/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ataziran/atazs-armatur/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ataziran/atazs-armatur/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ataziran/atazs-armatur/releases/tag/v0.1.0
